@@ -135,9 +135,29 @@ rather than merging them, the double-opening-stock guard, and the low-stock
 boundary condition (`on_hand <= threshold`, not `<`). 18 Rust tests total.
 `npm run build` clean. Frontend not click-tested (see phase 3 note — unchanged).
 
-### 5 — Purchasing · `TODO`
-Suppliers, purchase entry + invoice, stock intake, purchase returns, supplier
-outstanding.
+### 5 — Purchasing · `AWAITING SIGN-OFF`
+Done: `src-tauri/src/purchasing/` — suppliers with a computed `outstanding`
+balance (opening balance + received purchases − payments − completed returns,
+all in one query); purchases created as `draft` (no stock effect) with lines;
+`receive_purchase` is the transactional heart of the phase — it converts every
+line's quantity through `product_unit.factor` into the product's base unit and
+writes one `stock_movement` per line, or none at all, inside a single
+transaction, then flips status to `received`; a purchase can only be received
+once (checked inside the same transaction); purchase payments; purchase returns
+against specific lines, which reverse stock with a negative `purchase_return`
+movement and total into the outstanding-balance calculation.
+`src/pages/Purchasing.tsx` — supplier quick-add, purchase entry with a running
+total, line list, and a "Mark received" action.
+
+Verified: an integration test against real Postgres proves the unit-conversion
+math end to end — 2 boxes at factor 12 lands as 24 pieces in the ledger, not 2 —
+then a 1-box return reverses exactly 12 pieces, and the supplier-outstanding
+query is checked before and after a partial payment (240 → 140). **Caveat: this
+test runs the same SQL the Tauri commands run, not the command functions
+themselves** — `receive_purchase` etc. take a `tauri::State`, which is awkward to
+construct outside a running app, so the command wiring itself is exercised only
+by `cargo build` succeeding, not by a call. 19 Rust tests total. `npm run build`
+clean.
 
 ### 6 — POS · `TODO`
 Keyboard-first billing screen, barcode wedge capture, discounts, tax, split payments,

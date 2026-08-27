@@ -7,6 +7,7 @@ const LINKS = [
   { to: "/", label: "POS", end: true },
   { to: "/products", label: "Products" },
   { to: "/inventory", label: "Inventory" },
+  { to: "/purchasing", label: "Purchasing" },
 ];
 
 export default function Shell({ dbState }: { dbState: DbState }) {

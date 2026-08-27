@@ -2,6 +2,7 @@ pub mod db;
 pub mod domain;
 pub mod catalogue;
 pub mod inventory;
+pub mod purchasing;
 mod printing;
 
 use tauri::{Emitter, Manager};
@@ -35,6 +36,14 @@ pub fn run() {
             inventory::stock_valuation,
             inventory::record_opening_stock,
             inventory::adjust_stock,
+            purchasing::list_suppliers,
+            purchasing::create_supplier,
+            purchasing::list_purchases,
+            purchasing::get_purchase,
+            purchasing::create_purchase,
+            purchasing::receive_purchase,
+            purchasing::record_purchase_payment,
+            purchasing::return_purchase_lines,
         ])
         .setup(|app| {
             let handle = app.handle().clone();

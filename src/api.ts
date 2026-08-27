@@ -46,6 +46,38 @@ export type ProductDetail = Product & {
   price_tiers: PriceTier[];
 };
 
+export type Supplier = {
+  id: number;
+  name: string;
+  phone: string | null;
+  address: string | null;
+  outstanding: string;
+};
+
+export type Purchase = {
+  id: number;
+  supplier_id: number;
+  supplier_name: string;
+  invoice_number: string | null;
+  status: "draft" | "received" | "cancelled";
+  total: string;
+  paid: string;
+  created_at: string;
+};
+
+export type PurchaseLine = {
+  id: number;
+  product_id: number;
+  product_name: string;
+  unit_id: number;
+  unit_code: string;
+  quantity: string;
+  unit_cost: string;
+  line_total: string;
+};
+
+export type PurchaseDetail = Purchase & { lines: PurchaseLine[] };
+
 export type StockLevel = {
   product_id: number;
   product_name: string;
@@ -113,4 +145,19 @@ export const api = {
     invoke<void>("record_opening_stock", { input }),
   adjustStock: (input: { product_id: number; quantity: string; reason_note: string }) =>
     invoke<void>("adjust_stock", { input }),
+
+  suppliers: () => invoke<Supplier[]>("list_suppliers"),
+  createSupplier: (input: { name: string; phone: string | null; address: string | null }) =>
+    invoke<Supplier>("create_supplier", { input }),
+
+  purchases: () => invoke<Purchase[]>("list_purchases"),
+  purchase: (id: number) => invoke<PurchaseDetail>("get_purchase", { id }),
+  createPurchase: (input: {
+    supplier_id: number;
+    invoice_number: string | null;
+    lines: { product_id: number; unit_id: number; quantity: string; unit_cost: string }[];
+  }) => invoke<PurchaseDetail>("create_purchase", { input }),
+  receivePurchase: (id: number) => invoke<PurchaseDetail>("receive_purchase", { id }),
+  recordPurchasePayment: (purchaseId: number, amount: string, method: string) =>
+    invoke<void>("record_purchase_payment", { purchaseId, amount, method }),
 };
