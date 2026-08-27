@@ -1,6 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Receipt from "./components/Receipt";
+import DbBanner from "./components/DbBanner";
 import Settings from "./components/Settings";
+import { DbState, watchDb } from "./db";
 import { printBill } from "./printer";
 import { CATALOG, SHOP } from "./shop";
 import { Bill, Item, money, subtotal } from "./types";
@@ -18,6 +20,9 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [status, setStatus] = useState("");
   const [printing, setPrinting] = useState(false);
+  const [dbState, setDbState] = useState<DbState>({ kind: "starting" });
+
+  useEffect(() => watchDb(setDbState), []);
 
   const bill: Bill = useMemo(() => ({ billNumber, date, items }), [billNumber, date, items]);
 
@@ -60,6 +65,8 @@ export default function App() {
 
   return (
     <div className="app">
+      <DbBanner state={dbState} />
+
       <div className="pane">
         <h1>{SHOP.name} — POS</h1>
 
@@ -148,7 +155,7 @@ export default function App() {
         <Receipt bill={bill} />
       </div>
 
-      {showSettings && <Settings onClose={() => setShowSettings(false)} />}
+      {showSettings && <Settings dbState={dbState} onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

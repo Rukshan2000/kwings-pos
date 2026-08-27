@@ -23,7 +23,8 @@ Raw ESC/POS printing works and is **not** being rewritten:
 | Decision | Choice | Why |
 |---|---|---|
 | Datastore | Bundled PostgreSQL 16 | Real `NUMERIC`, and a multi-till/central-server future |
-| Distribution | EnterpriseDB "binaries only" zip as a Tauri `resources` entry | `pg_dump`/`pg_restore` must be real files on disk for backup anyway; avoids embedding ~120 MB into the exe and fighting the LTO profile |
+| Distribution | `theseus-rs/postgresql-binaries` **17.11.0** as a Tauri `resources` entry | Replaced the planned EnterpriseDB zip: 54 MB instead of ~250 MB, already trimmed, checksummed, and published for macOS too — which makes the whole bootstrap testable off Windows |
+| Binaries in git | **No.** Fetched by `scripts/fetch-postgres.mjs`, cached in CI | 54 MB per platform would live in every clone forever |
 | Rejected | `pg-embed` | Unmaintained; fetches binaries at runtime — dead offline |
 | Rejected | `postgresql_embedded` (bundled) | Embeds the archive in the binary, then unpacks to disk anyway — pays the cost twice |
 | Data dir | `%PROGRAMDATA%\GreenPlusPOS\pgdata`, ACL for Users | Installer is `perMachine`; `%LOCALAPPDATA%` would give each Windows user a separate, invisible database |
@@ -36,9 +37,11 @@ Raw ESC/POS printing works and is **not** being rewritten:
 
 - **Drop `panic = "abort"`** from the release profile — it skips destructors, leaking
   the Postgres child and the connection pool on panic.
-- **`sqlx` offline cache** (`cargo sqlx prepare`) must be committed and refreshed
-  whenever SQL changes, or the Windows CI build fails. Compile-time checking is used
-  for the complex reporting queries; runtime queries elsewhere.
+- **`sqlx` offline cache is not needed yet.** Phase 1 uses runtime-checked
+  `query_scalar`/`query_as` rather than the `query!` macros, so no `DATABASE_URL` or
+  `.sqlx` directory is required to build. The moment a `query!` macro is introduced
+  (likely in the phase 10 reports), `cargo sqlx prepare` output must be committed and
+  kept fresh or the Windows build breaks.
 - **Invoice numbers are not a `SEQUENCE`.** Sequences leak on rollback. Gapless
   per-day numbering uses a counter row with `SELECT … FOR UPDATE` inside the sale
   transaction. This deliberately serializes concurrent sales — correct for one till.
@@ -57,12 +60,17 @@ Raw ESC/POS printing works and is **not** being rewritten:
 
 Each phase stops for testing and sign-off before the next begins.
 
-### 1 — Postgres bootstrap · `TODO`
-Resource bundling; Job Object supervisor; `initdb`, start on free `127.0.0.1` port,
-clean shutdown; generated role password in app config; stale `postmaster.pid`
-recovery; migration runner; CI clean-install smoke test (silent `/S` install →
-launch → assert migrated → `pg_dump` non-empty → uninstall → assert no surviving
-`postgres.exe`).
+### 1 — Postgres bootstrap · `AWAITING SIGN-OFF`
+Done: fetch script with checksum + trim; resource bundling; Job Object supervisor;
+`initdb` with a scram password read from a file; start on a persisted free loopback
+port; readiness wait; clean `fast` shutdown; stale `postmaster.pid` recovery via
+`pg_ctl status`; version-mismatch guard; migration runner; `pg_dump` backup; NSIS
+hook creating `%PROGRAMDATA%\GreenPlusPOS` with a Users ACL; DB status banner and
+"Backup now" in Settings; CI `test` + `smoke` jobs.
+
+Verified locally on macOS (3 integration tests: bootstrap→migrate→backup→shutdown,
+restart reuses the cluster, stale pidfile cleared). Windows paths verified only by CI.
+
 **Gate:** installs and runs on a real till, leaves no orphan process.
 
 ### 2 — Schema · `TODO`

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { backupNow, DbState } from "../db";
 import {
   isDesktop,
   listPrinters,
@@ -8,13 +9,21 @@ import {
   setSavedPrinter,
 } from "../printer";
 
-export default function Settings({ onClose }: { onClose: () => void }) {
+export default function Settings({
+  dbState,
+  onClose,
+}: {
+  dbState: DbState;
+  onClose: () => void;
+}) {
   const [names, setNames] = useState<string[]>([]);
   const [sysDefault, setSysDefault] = useState<string | null>(null);
   const [printer, setPrinter] = useState(savedPrinter);
   const [drawer, setDrawer] = useState(savedDrawer);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [backup, setBackup] = useState("");
+  const [backingUp, setBackingUp] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -79,6 +88,48 @@ export default function Settings({ onClose }: { onClose: () => void }) {
           Receipts are sent as raw ESC/POS at 80&nbsp;mm (48 columns), so nothing
           depends on the driver's paper settings.
         </p>
+
+        <hr className="modal-rule" />
+
+        <h3>Database</h3>
+        {dbState.kind === "ready" ? (
+          <p className="hint">
+            PostgreSQL {dbState.health.serverVersion} on port {dbState.health.port} ·{" "}
+            {dbState.health.migrations} migration
+            {dbState.health.migrations === 1 ? "" : "s"} applied
+            {dbState.health.dataDir && (
+              <>
+                <br />
+                {dbState.health.dataDir}
+              </>
+            )}
+          </p>
+        ) : dbState.kind === "starting" ? (
+          <p className="hint">Starting…</p>
+        ) : dbState.kind === "browser" ? (
+          <p className="hint">Not available in the browser.</p>
+        ) : (
+          <p className="warn">{dbState.message}</p>
+        )}
+
+        <button
+          type="button"
+          disabled={dbState.kind !== "ready" || backingUp}
+          onClick={async () => {
+            setBackingUp(true);
+            setBackup("");
+            try {
+              setBackup(`Saved to ${await backupNow()}`);
+            } catch (e) {
+              setBackup(`Backup failed: ${e instanceof Error ? e.message : String(e)}`);
+            } finally {
+              setBackingUp(false);
+            }
+          }}
+        >
+          {backingUp ? "Backing up…" : "Backup now"}
+        </button>
+        {backup && <p className={backup.startsWith("Backup failed") ? "warn" : "hint"}>{backup}</p>}
 
         <div className="modal-actions">
           <button type="button" onClick={load}>

@@ -11,10 +11,43 @@ on:
 permissions:
   contents: write
 
-jobs:
-  build-windows:
-    runs-on: windows-latest
+env:
+  PG_VERSION: "17.11.0"
 
+jobs:
+  # Compiles and exercises the Windows-only code paths (Job Object, winspool,
+  # the spooler bindings) that cannot be built on the development machine.
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Cache PostgreSQL download
+        uses: actions/cache@v4
+        with:
+          path: .pg-cache
+          key: pg-${{ runner.os }}-${{ env.PG_VERSION }}
+
+      - run: npm ci
+      - run: node scripts/fetch-postgres.mjs
+
+      - name: Bootstrap tests (initdb, migrate, backup, shutdown)
+        working-directory: src-tauri
+        run: cargo test --test bootstrap -- --test-threads=1
+
+  build:
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -31,8 +64,14 @@ jobs:
         with:
           workspaces: src-tauri -> target
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Cache PostgreSQL download
+        uses: actions/cache@v4
+        with:
+          path: .pg-cache
+          key: pg-${{ runner.os }}-${{ env.PG_VERSION }}
+
+      - run: npm ci
+      - run: node scripts/fetch-postgres.mjs
 
       - name: Build Tauri app (installers + exe)
         run: npm run tauri build -- --target x86_64-pc-windows-msvc
@@ -42,7 +81,6 @@ jobs:
         run: |
           mkdir -p out
           base=src-tauri/target/x86_64-pc-windows-msvc/release
-          cp "$base"/*.exe out/ 2>/dev/null || true
           cp "$base"/bundle/nsis/*.exe out/ 2>/dev/null || true
           cp "$base"/bundle/msi/*.msi out/ 2>/dev/null || true
           ls -la out
@@ -53,8 +91,110 @@ jobs:
           path: out/*
           if-no-files-found: error
 
-      - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+  # Installs the real NSIS package on a clean runner and proves the three things
+  # that can only be checked on a machine that has never seen this app:
+  # first-launch initdb, a working database, and no orphan postgres.exe after a
+  # hard kill of the application.
+  smoke:
+    runs-on: windows-latest
+    needs: build
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: greenplus-pos-windows
+          path: out
+
+      - name: Silent install
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem out\*-setup.exe | Select-Object -First 1
+          if (-not $installer) { throw "no NSIS installer in the artifact" }
+          Write-Host "installing $($installer.Name)"
+          Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait
+          $exe = "C:\Program Files\Green Plus POS\Green Plus POS.exe"
+          if (-not (Test-Path $exe)) { throw "app was not installed to $exe" }
+          $pg = "C:\Program Files\Green Plus POS\resources\pgsql\bin\postgres.exe"
+          if (-not (Test-Path $pg)) { throw "bundled PostgreSQL was not installed" }
+          Write-Host "installed ok"
+
+      - name: Shared data directory is writable by Users
+        shell: pwsh
+        run: |
+          $dir = "$env:ProgramData\GreenPlusPOS"
+          if (-not (Test-Path $dir)) { throw "installer did not create $dir" }
+          $acl = (icacls $dir) -join "`n"
+          if ($acl -notmatch "BUILTIN\\Users") { throw "Users group was not granted access:`n$acl" }
+          Write-Host "acl ok"
+
+      - name: First launch initialises the cluster
+        shell: pwsh
+        run: |
+          $exe = "C:\Program Files\Green Plus POS\Green Plus POS.exe"
+          $app = Start-Process -FilePath $exe -PassThru
+          $marker = "$env:ProgramData\GreenPlusPOS\pgdata\PG_VERSION"
+
+          $deadline = (Get-Date).AddSeconds(180)
+          while (-not (Test-Path $marker) -and (Get-Date) -lt $deadline) {
+            Start-Sleep -Seconds 2
+            if ($app.HasExited) { throw "the app exited during startup (code $($app.ExitCode))" }
+          }
+          if (-not (Test-Path $marker)) {
+            Get-Content "$env:ProgramData\GreenPlusPOS\postgres.log" -Tail 40 -EA SilentlyContinue
+            throw "initdb did not complete within 180s"
+          }
+          Write-Host "cluster initialised: PG_VERSION = $(Get-Content $marker)"
+
+          $deadline = (Get-Date).AddSeconds(60)
+          while (-not (Get-Process postgres -EA SilentlyContinue) -and (Get-Date) -lt $deadline) {
+            Start-Sleep -Seconds 2
+          }
+          if (-not (Get-Process postgres -EA SilentlyContinue)) { throw "postgres.exe never started" }
+          Write-Host "postgres is running"
+
+          # Migrations must have been applied by now.
+          $cfg = Get-Content "$env:ProgramData\GreenPlusPOS\config.json" | ConvertFrom-Json
+          $env:PGPASSWORD = $cfg.password
+          $psql = "C:\Program Files\Green Plus POS\resources\pgsql\bin\psql.exe"
+          $rows = & $psql -h 127.0.0.1 -p $cfg.port -U pos_admin -d pos -tAqc `
+            "SELECT count(*) FROM _sqlx_migrations WHERE success"
+          if ([int]$rows -lt 1) { throw "no migrations were applied" }
+          Write-Host "migrations applied: $rows"
+
+          # pg_dump from the bundled binaries produces a real backup.
+          $dump = "$env:TEMP\smoke.dump"
+          & "C:\Program Files\Green Plus POS\resources\pgsql\bin\pg_dump.exe" `
+            -h 127.0.0.1 -p $cfg.port -U pos_admin -d pos --format=custom -f $dump
+          if ((Get-Item $dump).Length -le 0) { throw "pg_dump produced an empty file" }
+          Write-Host "backup ok: $((Get-Item $dump).Length) bytes"
+
+          "APP_PID=$($app.Id)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Hard kill leaves no orphan postgres.exe
+        shell: pwsh
+        run: |
+          # Stop-Process -Force is the crash case: no clean shutdown runs, so only
+          # the Job Object can reap the server.
+          Stop-Process -Id $env:APP_PID -Force
+          $deadline = (Get-Date).AddSeconds(30)
+          while ((Get-Process postgres -EA SilentlyContinue) -and (Get-Date) -lt $deadline) {
+            Start-Sleep -Seconds 1
+          }
+          $orphans = Get-Process postgres -EA SilentlyContinue
+          if ($orphans) {
+            $orphans | Format-Table Id, ProcessName | Out-String | Write-Host
+            throw "postgres.exe survived the app being killed"
+          }
+          Write-Host "no orphans"
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [test, build, smoke]
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: greenplus-pos-windows
+          path: out
+      - uses: softprops/action-gh-release@v2
         with:
           files: out/*

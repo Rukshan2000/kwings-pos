@@ -4,3 +4,7 @@ src-tauri/target
 
 src-tauri/gen/schemas
 tsconfig.tsbuildinfo
+
+# Bundled PostgreSQL — fetched by scripts/fetch-postgres.mjs, never committed
+src-tauri/resources/pgsql
+.pg-cache

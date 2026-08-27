@@ -196,3 +196,20 @@ button {
 @media print {
   .modal-back, .hint, .warn { display: none !important; }
 }
+
+/* ---------- Database banner ---------- */
+.db-banner {
+  grid-column: 1 / -1;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #fff7e0;
+  border: 1px solid #e6d089;
+  font-size: 13px;
+}
+.db-banner-error { background: #fdecec; border-color: #e7b3b3; }
+.db-banner-hint { margin-top: 4px; color: #766; font-size: 12px; }
+
+.modal-rule { border: 0; border-top: 1px solid var(--line); margin: 18px 0 14px; }
+.modal h3 { margin: 0 0 8px; font-size: 14px; color: var(--green); }
+
+@media print { .db-banner { display: none !important; } }
