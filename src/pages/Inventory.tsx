@@ -43,68 +43,84 @@ export default function Inventory() {
   });
 
   return (
-    <div className="products">
-      <div className="products-list">
-        <div className="products-search" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <label className="check" style={{ margin: 0 }}>
-            <input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} />
+    <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-5 items-start">
+      <div className="card p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-400"
+              checked={lowOnly}
+              onChange={(e) => setLowOnly(e.target.checked)}
+            />
             Low stock only
           </label>
-          <span className="hint" style={{ margin: 0 }}>
-            Stock valuation: {valuation.data ?? "…"}
+          <span className="text-sm text-slate-500">
+            Stock valuation: <b className="text-slate-800">{valuation.data ?? "…"}</b>
           </span>
         </div>
 
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>SKU</th>
-              <th>On hand</th>
-              <th>Unit</th>
-              <th>Low-stock at</th>
-            </tr>
-          </thead>
-          <tbody>
-            {levels.data?.map((l) => {
-              const low = l.low_stock_at !== null && Number(l.on_hand) <= Number(l.low_stock_at);
-              return (
-                <tr
-                  key={l.product_id}
-                  className={selected === l.product_id ? "row-selected" : ""}
-                  onClick={() => setSelected(l.product_id)}
-                >
-                  <td>{l.product_name}</td>
-                  <td>{l.sku ?? "—"}</td>
-                  <td className={low ? "warn" : undefined}>{l.on_hand}</td>
-                  <td>{l.base_unit_code}</td>
-                  <td>{l.low_stock_at ?? "—"}</td>
+        <div className="overflow-x-auto -mx-2">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-200">
+                <th className="px-2 py-2.5">Product</th>
+                <th className="px-2 py-2.5">SKU</th>
+                <th className="px-2 py-2.5">On hand</th>
+                <th className="px-2 py-2.5">Unit</th>
+                <th className="px-2 py-2.5">Low-stock at</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {levels.data?.map((l) => {
+                const low = l.low_stock_at !== null && Number(l.on_hand) <= Number(l.low_stock_at);
+                return (
+                  <tr
+                    key={l.product_id}
+                    onClick={() => setSelected(l.product_id)}
+                    className={`cursor-pointer transition-colors ${
+                      selected === l.product_id ? "bg-brand-50" : "hover:bg-slate-50"
+                    }`}
+                  >
+                    <td className="px-2 py-2.5 text-slate-800">{l.product_name}</td>
+                    <td className="px-2 py-2.5 text-slate-500">{l.sku ?? "—"}</td>
+                    <td className={`px-2 py-2.5 font-medium ${low ? "text-rose-600" : "text-slate-800"}`}>
+                      {l.on_hand}
+                    </td>
+                    <td className="px-2 py-2.5 text-slate-500">{l.base_unit_code}</td>
+                    <td className="px-2 py-2.5 text-slate-500">{l.low_stock_at ?? "—"}</td>
+                  </tr>
+                );
+              })}
+              {levels.data?.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-2 py-10 text-center text-slate-400">Nothing to show.</td>
                 </tr>
-              );
-            })}
-            {levels.data?.length === 0 && (
-              <tr><td colSpan={5} className="empty">Nothing to show.</td></tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div className="products-side">
-        <div className="pane">
-          <h2>{selected ? "Adjust stock" : "Select a product"}</h2>
+      <div className="flex flex-col gap-5">
+        <div className="card p-6">
+          <h2 className="mb-4 text-sm font-semibold text-brand-700">
+            {selected ? "Adjust stock" : "Select a product"}
+          </h2>
           {selected && (
             <form
-              className="stack"
+              className="space-y-3"
               onSubmit={(e) => {
                 e.preventDefault();
                 apply.mutate();
               }}
             >
-              <select value={mode} onChange={(e) => setMode(e.target.value as "opening" | "adjustment")}>
+              <select className="field" value={mode} onChange={(e) => setMode(e.target.value as "opening" | "adjustment")}>
                 <option value="adjustment">Stock adjustment (in/out)</option>
                 <option value="opening">Opening stock (once only)</option>
               </select>
               <input
+                className="field"
                 type="number" step="0.001"
                 placeholder={mode === "adjustment" ? "Signed quantity, e.g. -2 or 5" : "Quantity"}
                 value={qty}
@@ -113,14 +129,15 @@ export default function Inventory() {
               />
               {mode === "adjustment" && (
                 <input
+                  className="field"
                   placeholder="Reason *"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   required
                 />
               )}
-              {error && <p className="warn">{error}</p>}
-              <button type="submit" className="primary" disabled={apply.isPending}>
+              {error && <p className="text-sm text-rose-600">{error}</p>}
+              <button type="submit" className="btn-primary w-full" disabled={apply.isPending}>
                 {apply.isPending ? "Saving…" : "Apply"}
               </button>
             </form>
@@ -128,18 +145,20 @@ export default function Inventory() {
         </div>
 
         {selected && (
-          <div className="pane">
-            <h2>Movement history</h2>
-            <ul className="plain-list">
+          <div className="card p-6">
+            <h2 className="mb-4 text-sm font-semibold text-brand-700">Movement history</h2>
+            <ul className="space-y-2 text-sm text-slate-600 max-h-80 overflow-y-auto">
               {movements.data?.map((m) => (
-                <li key={m.id}>
-                  {new Date(m.created_at).toLocaleString()} · {m.reason} ·{" "}
-                  <b>{Number(m.quantity) > 0 ? `+${m.quantity}` : m.quantity}</b>
+                <li key={m.id} className="border-b border-slate-100 pb-2">
+                  <span className="text-slate-400">{new Date(m.created_at).toLocaleString()}</span> · {m.reason} ·{" "}
+                  <b className={Number(m.quantity) > 0 ? "text-emerald-600" : "text-rose-600"}>
+                    {Number(m.quantity) > 0 ? `+${m.quantity}` : m.quantity}
+                  </b>
                   {m.note && ` — ${m.note}`}
-                  {m.created_by_name && <span className="hint"> ({m.created_by_name})</span>}
+                  {m.created_by_name && <span className="text-slate-400"> ({m.created_by_name})</span>}
                 </li>
               ))}
-              {movements.data?.length === 0 && <li className="hint">No movements yet.</li>}
+              {movements.data?.length === 0 && <li className="text-slate-400">No movements yet.</li>}
             </ul>
           </div>
         )}

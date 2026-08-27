@@ -38,11 +38,7 @@ export default function Purchasing() {
 
   const submit = useMutation({
     mutationFn: () =>
-      api.createPurchase({
-        supplier_id: Number(supplierId),
-        invoice_number: invoiceNumber || null,
-        lines,
-      }),
+      api.createPurchase({ supplier_id: Number(supplierId), invoice_number: invoiceNumber || null, lines }),
     onSuccess: (p) => {
       setLines([]);
       setInvoiceNumber("");
@@ -62,42 +58,77 @@ export default function Purchasing() {
     },
   });
 
+  const statusPill = (status: string) => {
+    const styles: Record<string, string> = {
+      draft: "bg-slate-100 text-slate-600",
+      received: "bg-emerald-100 text-emerald-700",
+      cancelled: "bg-rose-100 text-rose-600",
+    };
+    return (
+      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${styles[status] ?? styles.draft}`}>
+        {status}
+      </span>
+    );
+  };
+
   return (
-    <div className="products">
-      <div className="products-list">
-        <h2>Purchases</h2>
-        <table className="table">
-          <thead>
-            <tr><th>Supplier</th><th>Invoice</th><th>Status</th><th>Total</th><th>Paid</th></tr>
-          </thead>
-          <tbody>
-            {purchases.data?.map((p) => (
-              <tr
-                key={p.id}
-                className={selectedPurchase === p.id ? "row-selected" : ""}
-                onClick={() => setSelectedPurchase(p.id)}
-              >
-                <td>{p.supplier_name}</td>
-                <td>{p.invoice_number ?? "—"}</td>
-                <td>{p.status}</td>
-                <td>{p.total}</td>
-                <td>{p.paid}</td>
+    <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-5 items-start">
+      <div className="card p-6">
+        <h2 className="mb-4 text-sm font-semibold text-brand-700">Purchases</h2>
+        <div className="overflow-x-auto -mx-2">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-200">
+                <th className="px-2 py-2.5">Supplier</th>
+                <th className="px-2 py-2.5">Invoice</th>
+                <th className="px-2 py-2.5">Status</th>
+                <th className="px-2 py-2.5">Total</th>
+                <th className="px-2 py-2.5">Paid</th>
               </tr>
-            ))}
-            {purchases.data?.length === 0 && <tr><td colSpan={5} className="empty">No purchases yet.</td></tr>}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {purchases.data?.map((p) => (
+                <tr
+                  key={p.id}
+                  onClick={() => setSelectedPurchase(p.id)}
+                  className={`cursor-pointer transition-colors ${
+                    selectedPurchase === p.id ? "bg-brand-50" : "hover:bg-slate-50"
+                  }`}
+                >
+                  <td className="px-2 py-2.5 text-slate-800">{p.supplier_name}</td>
+                  <td className="px-2 py-2.5 text-slate-500">{p.invoice_number ?? "—"}</td>
+                  <td className="px-2 py-2.5">{statusPill(p.status)}</td>
+                  <td className="px-2 py-2.5 text-slate-800">{p.total}</td>
+                  <td className="px-2 py-2.5 text-slate-500">{p.paid}</td>
+                </tr>
+              ))}
+              {purchases.data?.length === 0 && (
+                <tr><td colSpan={5} className="px-2 py-10 text-center text-slate-400">No purchases yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {detail.data && (
-          <div className="pane" style={{ marginTop: 16 }}>
-            <h2>Purchase #{detail.data.id} — {detail.data.status}</h2>
-            <ul className="plain-list">
+          <div className="mt-5 rounded-xl border border-slate-200 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-medium text-slate-800">Purchase #{detail.data.id}</h3>
+              {statusPill(detail.data.status)}
+            </div>
+            <ul className="mb-3 space-y-1 text-sm text-slate-600">
               {detail.data.lines.map((l) => (
-                <li key={l.id}>{l.product_name}: {l.quantity} {l.unit_code} @ {l.unit_cost} = {l.line_total}</li>
+                <li key={l.id}>
+                  {l.product_name}: {l.quantity} {l.unit_code} @ {l.unit_cost} = {l.line_total}
+                </li>
               ))}
             </ul>
             {detail.data.status === "draft" && (
-              <button type="button" className="primary" onClick={() => receive.mutate(detail.data.id)} disabled={receive.isPending}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => receive.mutate(detail.data.id)}
+                disabled={receive.isPending}
+              >
                 {receive.isPending ? "Receiving…" : "Mark received (adds to stock)"}
               </button>
             )}
@@ -105,52 +136,81 @@ export default function Purchasing() {
         )}
       </div>
 
-      <div className="products-side">
-        <div className="pane">
-          <h2>New Purchase</h2>
-          <form className="stack" onSubmit={(e) => { e.preventDefault(); submit.mutate(); }}>
-            <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} required>
+      <div className="flex flex-col gap-5">
+        <div className="card p-6">
+          <h2 className="mb-4 text-sm font-semibold text-brand-700">New Purchase</h2>
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              submit.mutate();
+            }}
+          >
+            <select className="field" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} required>
               <option value="">Supplier…</option>
-              {suppliers.data?.map((s) => <option key={s.id} value={s.id}>{s.name} (owed {s.outstanding})</option>)}
+              {suppliers.data?.map((s) => (
+                <option key={s.id} value={s.id}>{s.name} (owed {s.outstanding})</option>
+              ))}
             </select>
-            <input placeholder="Invoice number" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
+            <input
+              className="field"
+              placeholder="Invoice number"
+              value={invoiceNumber}
+              onChange={(e) => setInvoiceNumber(e.target.value)}
+            />
 
-            <h3>Lines</h3>
-            <ul className="plain-list">
+            <h3 className="label pt-1">Lines</h3>
+            <ul className="space-y-1 text-sm text-slate-600">
               {lines.map((l, i) => {
                 const p = products.data?.find((x) => x.id === l.product_id);
                 const u = units.data?.find((x) => x.id === l.unit_id);
                 return <li key={i}>{p?.name ?? l.product_id}: {l.quantity} {u?.code} @ {l.unit_cost}</li>;
               })}
             </ul>
-            <select value={productId} onChange={(e) => setProductId(e.target.value)}>
+            <select className="field" value={productId} onChange={(e) => setProductId(e.target.value)}>
               <option value="">Product…</option>
               {products.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
-            <div className="row2">
-              <select value={unitId} onChange={(e) => setUnitId(e.target.value)}>
+            <div className="grid grid-cols-2 gap-3">
+              <select className="field" value={unitId} onChange={(e) => setUnitId(e.target.value)}>
                 <option value="">Unit…</option>
                 {units.data?.map((u) => <option key={u.id} value={u.id}>{u.code}</option>)}
               </select>
-              <input type="number" step="0.001" placeholder="Qty" value={qty} onChange={(e) => setQty(e.target.value)} />
+              <input
+                className="field"
+                type="number" step="0.001"
+                placeholder="Qty"
+                value={qty}
+                onChange={(e) => setQty(e.target.value)}
+              />
             </div>
-            <div className="row2">
-              <input type="number" step="0.01" placeholder="Unit cost" value={cost} onChange={(e) => setCost(e.target.value)} />
-              <button type="button" onClick={addLine}>Add line</button>
+            <div className="grid grid-cols-[1fr_auto] gap-3">
+              <input
+                className="field"
+                type="number" step="0.01"
+                placeholder="Unit cost"
+                value={cost}
+                onChange={(e) => setCost(e.target.value)}
+              />
+              <button type="button" className="btn-secondary" onClick={addLine}>Add line</button>
             </div>
 
-            <p className="hint">Total: {total.toFixed(2)}</p>
-            {error && <p className="warn">{error}</p>}
-            <button type="submit" className="primary" disabled={!supplierId || lines.length === 0 || submit.isPending}>
+            <p className="text-sm text-slate-500">Total: <b className="text-slate-800">{total.toFixed(2)}</b></p>
+            {error && <p className="text-sm text-rose-600">{error}</p>}
+            <button
+              type="submit"
+              className="btn-primary w-full"
+              disabled={!supplierId || lines.length === 0 || submit.isPending}
+            >
               {submit.isPending ? "Saving…" : "Create purchase (draft)"}
             </button>
           </form>
         </div>
 
-        <div className="pane">
-          <h2>New Supplier</h2>
+        <div className="card p-6">
+          <h2 className="mb-3 text-sm font-semibold text-brand-700">New Supplier</h2>
           <form
-            className="row2"
+            className="grid grid-cols-[1fr_auto] gap-2"
             onSubmit={async (e) => {
               e.preventDefault();
               if (!newSupplierName.trim()) return;
@@ -159,8 +219,13 @@ export default function Purchasing() {
               qc.invalidateQueries({ queryKey: ["suppliers"] });
             }}
           >
-            <input placeholder="Name" value={newSupplierName} onChange={(e) => setNewSupplierName(e.target.value)} />
-            <button type="submit">Add</button>
+            <input
+              className="field"
+              placeholder="Name"
+              value={newSupplierName}
+              onChange={(e) => setNewSupplierName(e.target.value)}
+            />
+            <button type="submit" className="btn-secondary">Add</button>
           </form>
         </div>
       </div>

@@ -1,0 +1,59 @@
+/* Print output for the 80mm thermal receipt. Deliberately kept as plain CSS and
+ * excluded from the Tailwind restyle: this drives what actually prints on real
+ * hardware, and a visual refresh of the app chrome must never risk it.
+ *
+ * `.app` / `.pane` / `.preview` are structural hooks kept on the POS screen's
+ * wrapper elements specifically so this print rule keeps working after the rest
+ * of that screen was restyled with Tailwind utility classes alongside them. */
+
+:root {
+  --green: #2f5d3a;
+}
+
+.receipt {
+  width: 80mm;
+  padding: 6mm 4mm;
+  background: #fff;
+  color: #000;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.r-head { text-align: center; }
+.r-logo { width: 26mm; height: auto; margin: 0 auto 4px; display: block; }
+.r-tagline { font-size: 8px; letter-spacing: .5px; color: #777; text-transform: uppercase; }
+.r-name { font-size: 17px; font-weight: 700; color: var(--green); margin-bottom: 8px; }
+.r-contact { font-size: 12px; }
+
+.r-sep { border-top: 1px dashed #000; margin: 10px 0; }
+
+.r-meta > div { display: flex; justify-content: space-between; }
+
+.r-item { margin-bottom: 8px; }
+.r-item-name { font-weight: 700; }
+.r-item-line { display: flex; justify-content: space-between; padding-left: 6px; }
+
+.r-sum { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.r-total { display: flex; justify-content: space-between; font-size: 17px; font-weight: 700; }
+
+.r-foot { text-align: center; }
+.r-thanks { font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+.r-italic { font-style: italic; margin-top: 8px; }
+
+@page {
+  size: 80mm auto;
+  margin: 0;
+}
+
+@media print {
+  body { background: #fff; }
+  .app { display: block; padding: 0; }
+  .pane { display: none !important; }
+  .preview { display: block; }
+  .receipt {
+    width: 80mm;
+    padding: 3mm;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

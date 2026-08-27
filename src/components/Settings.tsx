@@ -48,56 +48,53 @@ export default function Settings({
   };
 
   const body = (
-      <div className={embedded ? "pane" : "modal"} onClick={(e) => e.stopPropagation()}>
-        <h2>Printer Settings</h2>
+    <div
+      className={embedded ? "card p-6 space-y-5" : "card w-[440px] max-w-[92vw] p-6 space-y-5"}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h2 className="text-base font-semibold text-brand-700">Printer Settings</h2>
 
-        {!isDesktop() && (
-          <p className="warn">
-            Running in a browser. Raw printing needs the desktop app — the browser
-            print dialog is used instead.
-          </p>
-        )}
+      {!isDesktop() && (
+        <p className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+          Running in a browser. Raw printing needs the desktop app — the browser print dialog is used instead.
+        </p>
+      )}
 
-        <label>Receipt printer</label>
-        <select value={printer} onChange={(e) => setPrinter(e.target.value)}>
-          <option value="">
-            {sysDefault ? `Windows default (${sysDefault})` : "Windows default"}
-          </option>
+      <div>
+        <label className="label mb-1.5 block">Receipt printer</label>
+        <select className="field" value={printer} onChange={(e) => setPrinter(e.target.value)}>
+          <option value="">{sysDefault ? `Windows default (${sysDefault})` : "Windows default"}</option>
           {names.map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
+            <option key={n} value={n}>{n}</option>
           ))}
         </select>
-
-        {loading && <p className="hint">Looking for printers…</p>}
+        {loading && <p className="mt-1.5 text-xs text-slate-400">Looking for printers…</p>}
         {!loading && !names.length && isDesktop() && (
-          <p className="warn">No printers found. Install the printer in Windows first.</p>
+          <p className="mt-1.5 text-xs text-rose-600">No printers found. Install the printer in Windows first.</p>
         )}
-        {error && <p className="warn">{error}</p>}
+        {error && <p className="mt-1.5 text-xs text-rose-600">{error}</p>}
+      </div>
 
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={drawer}
-            onChange={(e) => setDrawer(e.target.checked)}
-          />
-          Open cash drawer after printing
-        </label>
+      <label className="flex items-center gap-2 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-400"
+          checked={drawer}
+          onChange={(e) => setDrawer(e.target.checked)}
+        />
+        Open cash drawer after printing
+      </label>
 
-        <p className="hint">
-          Receipts are sent as raw ESC/POS at 80&nbsp;mm (48 columns), so nothing
-          depends on the driver's paper settings.
-        </p>
+      <p className="text-xs text-slate-500 leading-relaxed">
+        Receipts are sent as raw ESC/POS at 80&nbsp;mm (48 columns), so nothing depends on the driver's paper settings.
+      </p>
 
-        <hr className="modal-rule" />
-
-        <h3>Database</h3>
+      <div className="border-t border-slate-100 pt-5">
+        <h3 className="mb-2 text-sm font-semibold text-brand-700">Database</h3>
         {dbState.kind === "ready" ? (
-          <p className="hint">
+          <p className="text-xs text-slate-500 leading-relaxed">
             PostgreSQL {dbState.health.serverVersion} on port {dbState.health.port} ·{" "}
-            {dbState.health.migrations} migration
-            {dbState.health.migrations === 1 ? "" : "s"} applied
+            {dbState.health.migrations} migration{dbState.health.migrations === 1 ? "" : "s"} applied
             {dbState.health.dataDir && (
               <>
                 <br />
@@ -106,15 +103,16 @@ export default function Settings({
             )}
           </p>
         ) : dbState.kind === "starting" ? (
-          <p className="hint">Starting…</p>
+          <p className="text-xs text-slate-400">Starting…</p>
         ) : dbState.kind === "browser" ? (
-          <p className="hint">Not available in the browser.</p>
+          <p className="text-xs text-slate-400">Not available in the browser.</p>
         ) : (
-          <p className="warn">{dbState.message}</p>
+          <p className="text-xs text-rose-600">{dbState.message}</p>
         )}
 
         <button
           type="button"
+          className="btn-secondary mt-3"
           disabled={dbState.kind !== "ready" || backingUp}
           onClick={async () => {
             setBackingUp(true);
@@ -130,22 +128,23 @@ export default function Settings({
         >
           {backingUp ? "Backing up…" : "Backup now"}
         </button>
-        {backup && <p className={backup.startsWith("Backup failed") ? "warn" : "hint"}>{backup}</p>}
-
-        <div className="modal-actions">
-          <button type="button" onClick={load}>
-            Refresh
-          </button>
-          <button type="button" className="primary" onClick={save}>
-            Save
-          </button>
-        </div>
+        {backup && (
+          <p className={`mt-1.5 text-xs ${backup.startsWith("Backup failed") ? "text-rose-600" : "text-slate-500"}`}>
+            {backup}
+          </p>
+        )}
       </div>
+
+      <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
+        <button type="button" className="btn-secondary" onClick={load}>Refresh</button>
+        <button type="button" className="btn-primary" onClick={save}>Save</button>
+      </div>
+    </div>
   );
 
   if (embedded) return body;
   return (
-    <div className="modal-back" onClick={onClose}>
+    <div className="fixed inset-0 z-20 flex items-center justify-center bg-slate-900/40" onClick={onClose}>
       {body}
     </div>
   );

@@ -7,7 +7,7 @@ export default function SettingsPage() {
   useEffect(() => watchDb(setDbState), []);
 
   return (
-    <div className="settings-page">
+    <div className="max-w-lg">
       <Settings dbState={dbState} onClose={() => {}} embedded />
     </div>
   );

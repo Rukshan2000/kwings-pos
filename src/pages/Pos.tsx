@@ -60,9 +60,6 @@ export default function Pos() {
     searchRef.current?.focus();
   };
 
-  // Barcode-scanner wedge: a scan arrives as rapid keystrokes ending in Enter,
-  // indistinguishable from typing except for speed — so on Enter, an exact
-  // barcode match is preferred over the free-text search result.
   const onSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== "Enter" || !search.trim()) return;
     e.preventDefault();
@@ -102,17 +99,11 @@ export default function Pos() {
     },
   });
 
-  const resume = (id: number, lines: { product_id: number; unit_id: number; quantity: string; unit_price: string }[] | undefined) => {
-    // A held sale's lines are fetched fresh via get_purchase-style detail if
-    // ever needed; for the MVP the held list already carries enough to resume
-    // a simple cash sale by re-adding from the product cache below.
-    void lines;
-    setHeldSaleId(id);
-  };
+  const resume = (id: number) => setHeldSaleId(id);
 
   const checkout = useMutation({
-    mutationFn: async () => {
-      const result = await api.completeSale({
+    mutationFn: async () =>
+      api.completeSale({
         held_sale_id: heldSaleId,
         customer_id: null,
         lines: toLines(),
@@ -120,9 +111,7 @@ export default function Pos() {
           .filter((p) => Number(p.amount) > 0)
           .map((p) => ({ method: p.method, amount: p.amount })),
         discount_total: String(cart.reduce((s, l) => s + l.discount, 0)),
-      });
-      return result;
-    },
+      }),
     onSuccess: async (result) => {
       const bill: Bill = {
         billNumber: result.invoice_number ?? String(result.id),
@@ -134,7 +123,9 @@ export default function Pos() {
         await printBill(bill);
         setStatus(`Printed ${result.invoice_number}`);
       } catch (e) {
-        setStatus(`Sale saved (${result.invoice_number}) but printing failed: ${e instanceof Error ? e.message : String(e)}`);
+        setStatus(
+          `Sale saved (${result.invoice_number}) but printing failed: ${e instanceof Error ? e.message : String(e)}`
+        );
       } finally {
         setCheckingOut(false);
       }
@@ -145,125 +136,189 @@ export default function Pos() {
     onError: (e) => setStatus(`Checkout failed: ${e instanceof Error ? e.message : String(e)}`),
   });
 
-  const previewBill: Bill = { billNumber: heldSaleId ? `HELD-${heldSaleId}` : "—", date: new Date(), items: cart };
+  const previewBill: Bill = {
+    billNumber: heldSaleId ? `HELD-${heldSaleId}` : "—",
+    date: new Date(),
+    items: cart,
+  };
 
   return (
-    <div className="app">
-      <div className="pane">
-        <h1>{SHOP.name} — POS</h1>
+    // "app"/"pane"/"preview" are print-layout hooks (receipt.css) — kept
+    // alongside the Tailwind classes so printing a bill is unaffected by this
+    // screen's visual restyle.
+    <div className="app grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5 items-start">
+      <div className="pane card p-6 space-y-5">
+        <h1 className="text-lg font-semibold text-slate-800">{SHOP.name} — POS</h1>
 
-        <input
-          ref={searchRef}
-          className="pos-search"
-          placeholder="Scan a barcode or search by name / SKU…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={onSearchKeyDown}
-          autoFocus
-        />
-        {products.data && products.data.length > 0 && search.trim() && (
-          <ul className="pos-results">
-            {products.data.slice(0, 8).map((p) => (
-              <li key={p.id} onClick={() => addProduct(p)}>
-                <span>{p.name}</span>
-                <b>{money(Number(p.selling_price))}</b>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="relative">
+          <input
+            ref={searchRef}
+            className="field text-base py-3"
+            placeholder="Scan a barcode or search by name / SKU…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={onSearchKeyDown}
+            autoFocus
+          />
+          {products.data && products.data.length > 0 && search.trim() && (
+            <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card">
+              {products.data.slice(0, 8).map((p) => (
+                <li
+                  key={p.id}
+                  onClick={() => addProduct(p)}
+                  className="flex cursor-pointer items-center justify-between px-4 py-2.5 text-sm hover:bg-brand-50"
+                >
+                  <span className="text-slate-700">{p.name}</span>
+                  <b className="text-slate-900">{money(Number(p.selling_price))}</b>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         {held.data && held.data.length > 0 && (
-          <details className="held-list">
-            <summary>{held.data.length} held sale(s)</summary>
-            <ul className="plain-list">
+          <details className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+            <summary className="cursor-pointer font-medium text-brand-700">
+              {held.data.length} held sale(s)
+            </summary>
+            <ul className="mt-2 space-y-1.5">
               {held.data.map((h) => (
-                <li key={h.id}>
-                  #{h.id} · {h.line_count} item(s) · {h.subtotal}{" "}
-                  <button type="button" onClick={() => resume(h.id, undefined)}>Select</button>
+                <li key={h.id} className="flex items-center justify-between">
+                  <span className="text-slate-600">
+                    #{h.id} · {h.line_count} item(s) · {h.subtotal}
+                  </span>
+                  <button type="button" className="btn-secondary !py-1 !px-2.5 text-xs" onClick={() => resume(h.id)}>
+                    Select
+                  </button>
                 </li>
               ))}
             </ul>
           </details>
         )}
 
-        <ul className="cart">
-          {cart.length === 0 && <li className="empty">No items yet.</li>}
+        <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+          {cart.length === 0 && (
+            <li className="px-4 py-6 text-center text-sm text-slate-400">No items yet.</li>
+          )}
           {cart.map((l) => (
-            <li key={l.id}>
-              <span className="c-name">{l.name}</span>
+            <li key={l.id} className="flex items-center gap-3 px-4 py-3">
+              <span className="flex-1 text-sm text-slate-700">{l.name}</span>
               <input
-                className="c-input"
-                type="number" min="0.001" step="0.001"
+                className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-right text-sm"
+                type="number"
+                min="0.001"
+                step="0.001"
                 value={l.qty}
                 onChange={(e) => setQty(l.id, Number(e.target.value))}
               />
               <input
-                className="c-input"
-                type="number" min="0" step="0.01"
+                className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-right text-sm"
+                type="number"
+                min="0"
+                step="0.01"
                 value={l.price}
                 onChange={(e) => setPrice(l.id, Number(e.target.value))}
               />
-              <span className="c-tot">{money(l.qty * l.price - l.discount)}</span>
-              <button type="button" onClick={() => removeLine(l.id)} aria-label="Remove">×</button>
+              <span className="w-20 text-right text-sm font-medium text-slate-800">
+                {money(l.qty * l.price - l.discount)}
+              </span>
+              <button
+                type="button"
+                onClick={() => removeLine(l.id)}
+                aria-label="Remove"
+                className="text-slate-400 hover:text-rose-500 transition-colors"
+              >
+                ×
+              </button>
             </li>
           ))}
         </ul>
 
-        <div className="grand">
-          <span>TOTAL</span>
-          <span>{SHOP.currency} {money(subtotal)}</span>
+        <div className="flex items-center justify-between rounded-xl bg-slate-900 px-5 py-4 text-white">
+          <span className="text-sm font-medium tracking-wide text-slate-300">TOTAL</span>
+          <span className="text-xl font-semibold">
+            {SHOP.currency} {money(subtotal)}
+          </span>
         </div>
 
-        <h3>Payment</h3>
-        {payments.map((p, i) => (
-          <div className="row2" key={i} style={{ marginBottom: 6 }}>
-            <select
-              value={p.method}
-              onChange={(e) =>
-                setPayments((prev) => prev.map((x, j) => (j === i ? { ...x, method: e.target.value } : x)))
-              }
-            >
-              <option value="cash">Cash</option>
-              <option value="card">Card</option>
-              <option value="bank_transfer">Bank transfer</option>
-              <option value="credit">Credit</option>
-            </select>
-            <input
-              type="number" step="0.01" min="0"
-              placeholder="Amount"
-              value={p.amount}
-              onChange={(e) =>
-                setPayments((prev) => prev.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)))
-              }
-            />
+        <div>
+          <h3 className="label mb-2">Payment</h3>
+          <div className="space-y-2">
+            {payments.map((p, i) => (
+              <div className="grid grid-cols-2 gap-2" key={i}>
+                <select
+                  className="field"
+                  value={p.method}
+                  onChange={(e) =>
+                    setPayments((prev) => prev.map((x, j) => (j === i ? { ...x, method: e.target.value } : x)))
+                  }
+                >
+                  <option value="cash">Cash</option>
+                  <option value="card">Card</option>
+                  <option value="bank_transfer">Bank transfer</option>
+                  <option value="credit">Credit</option>
+                </select>
+                <input
+                  className="field"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Amount"
+                  value={p.amount}
+                  onChange={(e) =>
+                    setPayments((prev) => prev.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)))
+                  }
+                />
+              </div>
+            ))}
           </div>
-        ))}
-        <button type="button" onClick={() => setPayments((prev) => [...prev, { method: "cash", amount: "" }])}>
-          + Split payment
-        </button>
-        <p className="hint">
-          Paid: {money(paidTotal)} {paidTotal < subtotal && `· Remaining (credit): ${money(subtotal - paidTotal)}`}
-        </p>
-
-        <div className="actions">
           <button
             type="button"
-            className="primary"
+            className="btn-secondary !py-1.5 !px-3 text-xs mt-2"
+            onClick={() => setPayments((prev) => [...prev, { method: "cash", amount: "" }])}
+          >
+            + Split payment
+          </button>
+          <p className="mt-2 text-xs text-slate-500">
+            Paid: {money(paidTotal)}
+            {paidTotal < subtotal && (
+              <span className="text-amber-600"> · Remaining (credit): {money(subtotal - paidTotal)}</span>
+            )}
+          </p>
+        </div>
+
+        <div className="flex gap-2 pt-1">
+          <button
+            type="button"
+            className="btn-primary flex-1"
             disabled={!cart.length || checkout.isPending || checkingOut}
             onClick={() => checkout.mutate()}
           >
             {checkout.isPending || checkingOut ? "Processing…" : "Complete Sale"}
           </button>
-          <button type="button" disabled={!cart.length || hold.isPending} onClick={() => hold.mutate()}>
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={!cart.length || hold.isPending}
+            onClick={() => hold.mutate()}
+          >
             Hold
           </button>
-          <button type="button" onClick={resetCart}>Cancel</button>
+          <button type="button" className="btn-secondary" onClick={resetCart}>
+            Cancel
+          </button>
         </div>
 
-        {status && <p className={status.startsWith("Checkout failed") ? "warn" : "hint"}>{status}</p>}
+        {status && (
+          <p className={`text-sm ${status.startsWith("Checkout failed") ? "text-rose-600" : "text-slate-500"}`}>
+            {status}
+          </p>
+        )}
       </div>
 
-      <div className="preview">
+      {/* No extra wrapper chrome here: printing shows only what "preview" contains
+          (receipt.css), so anything added around Receipt would print too. */}
+      <div className="preview flex justify-center">
         <Receipt bill={previewBill} />
       </div>
     </div>
