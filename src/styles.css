@@ -1,0 +1,153 @@
+:root {
+  --bg: #f2f4f2;
+  --panel: #fff;
+  --line: #d8ded8;
+  --ink: #1e2420;
+  --green: #2f5d3a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 20px;
+  padding: 20px;
+  min-height: 100vh;
+  align-items: start;
+}
+
+.pane {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px;
+}
+
+h1 { font-size: 18px; margin: 0 0 14px; color: var(--green); }
+
+.quick {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.quick button {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fafbfa;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+}
+.quick button:hover { border-color: var(--green); }
+.quick small { color: #667; }
+
+.form { display: grid; grid-template-columns: 1fr 90px 120px auto; gap: 8px; }
+.form input {
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+}
+.form button, .actions button {
+  padding: 9px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+.primary { background: var(--green) !important; color: #fff; border-color: var(--green) !important; }
+.primary:disabled { opacity: .5; cursor: not-allowed; }
+
+.cart { list-style: none; margin: 16px 0 0; padding: 0; }
+.cart li {
+  display: grid;
+  grid-template-columns: 1fr auto auto 28px;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 4px;
+  border-bottom: 1px dashed var(--line);
+  font-size: 14px;
+}
+.cart .empty { color: #889; border: 0; }
+.c-qty { color: #667; }
+.c-tot { font-weight: 600; }
+.cart li button { border: 0; background: none; font-size: 18px; color: #a44; }
+
+.grand {
+  display: flex;
+  justify-content: space-between;
+  font-size: 20px;
+  font-weight: 700;
+  padding: 14px 4px;
+}
+
+.actions { display: flex; gap: 10px; }
+
+.preview { display: flex; justify-content: center; }
+
+/* ---------- Receipt (80mm thermal) ---------- */
+.receipt {
+  width: 80mm;
+  padding: 6mm 4mm;
+  background: #fff;
+  color: #000;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.r-head { text-align: center; }
+.r-logo { width: 26mm; height: auto; margin: 0 auto 4px; display: block; }
+.r-tagline { font-size: 8px; letter-spacing: .5px; color: #777; text-transform: uppercase; }
+.r-name { font-size: 17px; font-weight: 700; color: var(--green); margin-bottom: 8px; }
+.r-contact { font-size: 12px; }
+
+.r-sep { border-top: 1px dashed #000; margin: 10px 0; }
+
+.r-meta > div { display: flex; justify-content: space-between; }
+
+.r-item { margin-bottom: 8px; }
+.r-item-name { font-weight: 700; }
+.r-item-line { display: flex; justify-content: space-between; padding-left: 6px; }
+
+.r-sum { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.r-total { display: flex; justify-content: space-between; font-size: 17px; font-weight: 700; }
+
+.r-foot { text-align: center; }
+.r-thanks { font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+.r-italic { font-style: italic; margin-top: 8px; }
+
+/* ---------- Print ---------- */
+@page {
+  size: 80mm auto;
+  margin: 0;
+}
+
+@media print {
+  body { background: #fff; }
+  .app { display: block; padding: 0; }
+  .pane { display: none !important; }
+  .preview { display: block; }
+  .receipt {
+    width: 80mm;
+    padding: 3mm;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
