@@ -43,9 +43,19 @@ export const dbHealth = async (): Promise<DbHealth> => {
 
 export const backupNow = () => invoke<string>("backup_now");
 
+const POLL_INTERVAL_MS = 400;
+
 /**
  * Watches the bootstrap. The first launch runs initdb and can take a while, so the
  * UI reports progress rather than appearing hung.
+ *
+ * Polls `db_status` on an interval rather than relying solely on the `db-ready`
+ * event. `listen()` only resolves once the backend confirms the listener is
+ * registered, and the Rust side can emit before that registration completes —
+ * on a fast machine it reliably does, since bootstrap can finish in well under a
+ * second. A single one-shot poll has the same race the other way. Polling until
+ * resolved is immune to both: the only failure mode left is genuinely never
+ * becoming ready, which is exactly what should show as stuck.
  */
 export function watchDb(onChange: (s: DbState) => void): () => void {
   if (!isDesktop()) {
@@ -54,27 +64,49 @@ export function watchDb(onChange: (s: DbState) => void): () => void {
   }
 
   let stopped = false;
+  let resolved = false;
   onChange({ kind: "starting" });
 
   const ready = async () => {
+    if (resolved || stopped) return;
     try {
-      onChange({ kind: "ready", health: await dbHealth() });
+      const health = await dbHealth();
+      if (stopped) return;
+      resolved = true;
+      onChange({ kind: "ready", health });
     } catch (e) {
+      if (stopped) return;
       onChange({ kind: "error", message: e instanceof Error ? e.message : String(e) });
     }
   };
 
+  const fail = (message: string) => {
+    if (resolved || stopped) return;
+    resolved = true;
+    onChange({ kind: "error", message });
+  };
+
   const unlisten = Promise.all([
-    listen("db-ready", () => !stopped && ready()),
-    listen<string>("db-error", (e) => !stopped && onChange({ kind: "error", message: e.payload })),
+    listen("db-ready", () => ready()),
+    listen<string>("db-error", (e) => fail(e.payload)),
   ]);
 
-  // The event can land before this listener is attached, so poll once at startup.
-  invoke<{ ready: boolean }>("db_status")
-    .then((s) => {
-      if (s.ready && !stopped) void ready();
-    })
-    .catch(() => {});
+  const poll = async () => {
+    while (!stopped && !resolved) {
+      try {
+        const s = await invoke<{ ready: boolean }>("db_status");
+        if (s.ready) {
+          await ready();
+          return;
+        }
+      } catch {
+        // db_status itself failing (e.g. during a hot reload) is not a database
+        // error — just keep polling rather than reporting a false failure.
+      }
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+    }
+  };
+  void poll();
 
   return () => {
     stopped = true;
