@@ -58,13 +58,28 @@ async function main() {
   fs.mkdirSync(CACHE, { recursive: true });
   const archive = path.join(CACHE, name);
 
+  // Downloaded independently: a cache can plausibly restore the large archive
+  // without its tiny checksum sidecar (or vice versa), and re-verifying against
+  // a missing file should mean "fetch it", not "crash".
   if (!fs.existsSync(archive)) {
     await download(`${base}/${name}`, archive);
+  }
+  if (!fs.existsSync(`${archive}.sha256`)) {
     await download(`${base}/${name}.sha256`, `${archive}.sha256`);
   }
 
-  // The published .sha256 is the bare digest, no filename.
-  const want = fs.readFileSync(`${archive}.sha256`, "utf8").trim().split(/\s+/)[0];
+  // The published .sha256 file's format differs per platform: macOS/Linux ships
+  // plain `shasum` output ("hash  filename"), Windows ships raw `CertUtil
+  // -hashfile` output (three lines: a label, the hash on its own line, then a
+  // trailing status line, no filename). Rather than assume either layout,
+  // search the whole file for the one thing both formats actually contain: a
+  // bare 64-character hex string.
+  const sha256Text = fs.readFileSync(`${archive}.sha256`, "utf8");
+  const match = sha256Text.match(/\b[0-9a-fA-F]{64}\b/);
+  if (!match) {
+    throw new Error(`could not find a SHA-256 hash in ${archive}.sha256:\n${sha256Text}`);
+  }
+  const want = match[0].toLowerCase();
   const got = createHash("sha256").update(fs.readFileSync(archive)).digest("hex");
   if (want !== got) {
     fs.rmSync(archive, { force: true });
