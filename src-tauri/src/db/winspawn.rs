@@ -61,8 +61,10 @@ const INFINITE: u32 = 0xFFFF_FFFF;
 // winnt.h constants used by `add_user_to_token_dacl`. Stable, documented,
 // version-independent — not worth pulling in extra windows-rs feature
 // surface for.
-const ACL_REVISION: u32 = 2;
-const OBJECT_INHERIT_ACE: u32 = 0x1;
+const ACL_REVISION: windows::Win32::Security::ACE_REVISION =
+    windows::Win32::Security::ACE_REVISION(2);
+const OBJECT_INHERIT_ACE: windows::Win32::Security::ACE_FLAGS =
+    windows::Win32::Security::ACE_FLAGS(0x1);
 const GENERIC_ALL: u32 = 0x1000_0000;
 
 fn win_err(context: &str) -> DbError {
