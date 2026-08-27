@@ -297,9 +297,6 @@ export default function Pos() {
                           {inCart.qty}
                         </span>
                       )}
-                      <div className="mb-2 flex h-16 items-center justify-center rounded-lg bg-slate-100 text-2xl">
-                        🧴
-                      </div>
                       <p className="text-sm font-medium text-slate-800 leading-snug line-clamp-2">{p.name}</p>
                       <div className="mt-1.5 flex items-baseline justify-between">
                         <span className="text-sm font-semibold text-slate-900">{money(Number(p.selling_price))}</span>
