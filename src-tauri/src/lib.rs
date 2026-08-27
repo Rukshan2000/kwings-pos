@@ -8,12 +8,13 @@ mod printing;
 
 use tauri::{Emitter, Manager};
 
-use db::{AppDb, Db};
+use db::{AppDb, BootstrapError, Db};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(AppDb::empty())
+        .manage(BootstrapError::empty())
         .invoke_handler(tauri::generate_handler![
             printing::list_printers,
             printing::print_raw,
@@ -67,7 +68,10 @@ pub fn run() {
                     }
                     Err(e) => {
                         eprintln!("database bootstrap failed: {e}");
-                        let _ = handle.emit("db-error", e.to_string());
+                        let message = e.to_string();
+                        let error_state = handle.state::<BootstrapError>();
+                        *error_state.0.write().await = Some(message.clone());
+                        let _ = handle.emit("db-error", message);
                     }
                 }
             });

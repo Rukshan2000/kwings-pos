@@ -4,7 +4,7 @@ use serde::Serialize;
 use tauri::{Manager, State};
 
 use crate::db::config::{DB_NAME, DB_USER};
-use crate::db::{backup, AppDb, Db, DbError};
+use crate::db::{backup, AppDb, BootstrapError, Db, DbError};
 
 /// What the app knows about its own database. Shown in Settings so a shop owner
 /// can read something useful to us over the phone.
@@ -27,10 +27,13 @@ pub struct DbStatus {
 }
 
 #[tauri::command]
-pub async fn db_status(state: State<'_, AppDb>) -> Result<DbStatus, DbError> {
+pub async fn db_status(
+    state: State<'_, AppDb>,
+    bootstrap_error: State<'_, BootstrapError>,
+) -> Result<DbStatus, DbError> {
     Ok(DbStatus {
         ready: state.0.read().await.is_some(),
-        error: None,
+        error: bootstrap_error.0.read().await.clone(),
     })
 }
 

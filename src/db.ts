@@ -94,9 +94,13 @@ export function watchDb(onChange: (s: DbState) => void): () => void {
   const poll = async () => {
     while (!stopped && !resolved) {
       try {
-        const s = await invoke<{ ready: boolean }>("db_status");
+        const s = await invoke<{ ready: boolean; error: string | null }>("db_status");
         if (s.ready) {
           await ready();
+          return;
+        }
+        if (s.error) {
+          fail(s.error);
           return;
         }
       } catch {

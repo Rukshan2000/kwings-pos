@@ -34,9 +34,12 @@ use windows::Win32::Foundation::{
     CloseHandle, SetHandleInformation, HANDLE, HANDLE_FLAG_INHERIT, WAIT_OBJECT_0, WAIT_TIMEOUT,
 };
 use windows::Win32::Security::{
-    AllocateAndInitializeSid, CreateRestrictedToken, FreeSid, DISABLE_MAX_PRIVILEGE,
+    AclSizeInformation, AddAccessAllowedAceEx, AddAce,
+    AllocateAndInitializeSid, CreateRestrictedToken, FreeSid, GetAce, GetAclInformation,
+    GetLengthSid, GetTokenInformation, InitializeAcl, SetTokenInformation, TokenDefaultDacl,
+    TokenUser, ACE_HEADER, ACL, ACL_SIZE_INFORMATION, DISABLE_MAX_PRIVILEGE, PSID,
     SECURITY_NT_AUTHORITY, SID_AND_ATTRIBUTES, TOKEN_ADJUST_DEFAULT, TOKEN_ASSIGN_PRIMARY,
-    TOKEN_DUPLICATE, TOKEN_QUERY, PSID,
+    TOKEN_DEFAULT_DACL, TOKEN_DUPLICATE, TOKEN_QUERY, TOKEN_USER,
 };
 use windows::Win32::System::Threading::{
     CreateProcessAsUserW, GetCurrentProcess, GetExitCodeProcess, OpenProcessToken,
@@ -54,6 +57,13 @@ const SECURITY_BUILTIN_DOMAIN_RID: u32 = 32;
 const DOMAIN_ALIAS_RID_ADMINS: u32 = 544;
 
 const INFINITE: u32 = 0xFFFF_FFFF;
+
+// winnt.h constants used by `add_user_to_token_dacl`. Stable, documented,
+// version-independent — not worth pulling in extra windows-rs feature
+// surface for.
+const ACL_REVISION: u32 = 2;
+const OBJECT_INHERIT_ACE: u32 = 0x1;
+const GENERIC_ALL: u32 = 0x1000_0000;
 
 fn win_err(context: &str) -> DbError {
     DbError::Job(format!("{context}: {}", windows::core::Error::from_win32()))
@@ -141,7 +151,101 @@ fn make_restricted_token() -> Result<RestrictedToken, DbError> {
         .map_err(|e| DbError::Job(format!("CreateRestrictedToken: {e}")))?;
     }
 
+    add_user_to_token_dacl(restricted)?;
+
     Ok(RestrictedToken(restricted))
+}
+
+/// Restores the current user's SID to the restricted token's default DACL.
+///
+/// Windows never puts the Administrator account itself in a token's default
+/// DACL — you get Administrators + System, or for a regular user, User +
+/// System. Once `CreateRestrictedToken` strips the Administrators SID above,
+/// the default DACL is left with only System in it. Every kernel object this
+/// process creates without an explicit security descriptor — including the
+/// anonymous pipes `initdb` opens internally to read `postgres --version` —
+/// is then denied access to our own account, which is exactly the
+/// "could not read postgres --version" / access-denied failures this fixes.
+/// This is a direct port of PostgreSQL's own `AddUserToTokenDacl`
+/// (`src/common/exec.c`), which every Postgres frontend tool calls for the
+/// same reason before running under a restricted token.
+fn add_user_to_token_dacl(token: HANDLE) -> Result<(), DbError> {
+    unsafe {
+        let mut size = 0u32;
+        let _ = GetTokenInformation(token, TokenDefaultDacl, None, 0, &mut size);
+        if size == 0 {
+            return Err(win_err("GetTokenInformation(TokenDefaultDacl) size"));
+        }
+        let mut dacl_buf = vec![0u8; size as usize];
+        GetTokenInformation(
+            token,
+            TokenDefaultDacl,
+            Some(dacl_buf.as_mut_ptr() as *mut _),
+            size,
+            &mut size,
+        )
+        .map_err(|e| DbError::Job(format!("GetTokenInformation(TokenDefaultDacl): {e}")))?;
+        let old_acl = (*(dacl_buf.as_ptr() as *const TOKEN_DEFAULT_DACL)).DefaultDacl;
+
+        let mut asi = ACL_SIZE_INFORMATION::default();
+        GetAclInformation(
+            old_acl,
+            &mut asi as *mut _ as *mut _,
+            std::mem::size_of::<ACL_SIZE_INFORMATION>() as u32,
+            AclSizeInformation,
+        )
+        .map_err(|e| DbError::Job(format!("GetAclInformation: {e}")))?;
+
+        let mut user_size = 0u32;
+        let _ = GetTokenInformation(token, TokenUser, None, 0, &mut user_size);
+        if user_size == 0 {
+            return Err(win_err("GetTokenInformation(TokenUser) size"));
+        }
+        let mut user_buf = vec![0u8; user_size as usize];
+        GetTokenInformation(
+            token,
+            TokenUser,
+            Some(user_buf.as_mut_ptr() as *mut _),
+            user_size,
+            &mut user_size,
+        )
+        .map_err(|e| DbError::Job(format!("GetTokenInformation(TokenUser): {e}")))?;
+        let user_sid = (*(user_buf.as_ptr() as *const TOKEN_USER)).User.Sid;
+
+        // Old ACL bytes, plus one new ACCESS_ALLOWED_ACE sized for the user's SID
+        // (ACCESS_ALLOWED_ACE already embeds a 1-DWORD placeholder SID, hence the
+        // `- size_of::<u32>()`, matching PostgreSQL's own arithmetic here).
+        let ace_template_size = 3 * std::mem::size_of::<u32>(); // ACE_HEADER + Mask + SidStart
+        let new_size = asi.AclBytesInUse as usize + ace_template_size
+            + GetLengthSid(user_sid) as usize
+            - std::mem::size_of::<u32>();
+        let mut new_acl_buf = vec![0u8; new_size];
+        let new_acl = new_acl_buf.as_mut_ptr() as *mut ACL;
+        InitializeAcl(new_acl, new_size as u32, ACL_REVISION)
+            .map_err(|e| DbError::Job(format!("InitializeAcl: {e}")))?;
+
+        for i in 0..asi.AceCount {
+            let mut ace: *mut core::ffi::c_void = std::ptr::null_mut();
+            GetAce(old_acl, i, &mut ace).map_err(|e| DbError::Job(format!("GetAce: {e}")))?;
+            let ace_size = (*(ace as *const ACE_HEADER)).AceSize as u32;
+            AddAce(new_acl, ACL_REVISION, u32::MAX, ace, ace_size)
+                .map_err(|e| DbError::Job(format!("AddAce: {e}")))?;
+        }
+
+        AddAccessAllowedAceEx(new_acl, ACL_REVISION, OBJECT_INHERIT_ACE, GENERIC_ALL, user_sid)
+            .map_err(|e| DbError::Job(format!("AddAccessAllowedAceEx: {e}")))?;
+
+        let new_dacl = TOKEN_DEFAULT_DACL { DefaultDacl: new_acl };
+        SetTokenInformation(
+            token,
+            TokenDefaultDacl,
+            &new_dacl as *const _ as *const _,
+            new_size as u32,
+        )
+        .map_err(|e| DbError::Job(format!("SetTokenInformation(TokenDefaultDacl): {e}")))?;
+    }
+
+    Ok(())
 }
 
 /// Closes a HANDLE when dropped. A tiny local RAII helper rather than pulling
@@ -258,9 +362,16 @@ pub fn spawn_restricted(
 
     let mut cmdline = to_wide(&build_command_line(&exe.display().to_string(), args));
     let mut cwd_wide = to_wide(&cwd.display().to_string());
+    // Empty (not null) desktop name: tells Windows to grant this restricted
+    // token's logon SID proper access to the default desktop/window station.
+    // Without this, a token with Administrators disabled loses its implicit
+    // access to those objects and the child fails during DLL init with
+    // STATUS_DLL_INIT_FAILED (0xC0000142) before it can log anything.
+    let mut desktop_wide = to_wide("");
 
     let mut startup = STARTUPINFOW::default();
     startup.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
+    startup.lpDesktop = PWSTR(desktop_wide.as_mut_ptr());
     startup.dwFlags = STARTF_USESTDHANDLES;
     startup.hStdInput = HANDLE::default();
     startup.hStdOutput = log_handle;

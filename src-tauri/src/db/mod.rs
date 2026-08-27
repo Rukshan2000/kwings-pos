@@ -73,6 +73,18 @@ impl AppDb {
     }
 }
 
+/// Set once if bootstrap fails, so `db_status` can report it even if the
+/// frontend's `db-error` event listener lost the race to register before the
+/// backend emitted — without this, a fast failure leaves the UI polling
+/// `db_status` forever, stuck showing "starting".
+pub struct BootstrapError(pub tokio::sync::RwLock<Option<String>>);
+
+impl BootstrapError {
+    pub fn empty() -> Self {
+        BootstrapError(tokio::sync::RwLock::new(None))
+    }
+}
+
 /// Live database handle shared with every Tauri command.
 pub struct Db {
     pub pool: PgPool,
