@@ -93,9 +93,29 @@ FK/CHECK constraints actually reject bad data against a real running Postgres.
 
 **Gate:** schema review before any feature is built on it.
 
-### 3 — Catalogue · `TODO`
-Products, categories, brands, units + conversions (base unit + factors, stock always
-stored in base unit), price tiers (cost, retail, wholesale, quantity breaks).
+### 3 — Catalogue · `AWAITING SIGN-OFF`
+Done: `src-tauri/src/catalogue/` — Tauri commands for categories, brands, units,
+and full product CRUD (create/update/soft-archive), plus per-product alternate
+units with conversion factors and retail/wholesale price tiers with quantity
+breaks. SKU/barcode collisions are caught by the DB's unique constraint and
+mapped to a specific `ProductSaveError` the frontend can point at the right field,
+rather than surfacing raw Postgres text.
+
+Frontend restructured onto React Router + TanStack Query, per the locked decision:
+`src/layout/Shell.tsx` (nav + the DB banner, now shown globally instead of only on
+the POS screen), `src/pages/Pos.tsx` (the existing biller, moved not rewritten),
+`src/pages/Products.tsx` (list/search, create/edit form, quick-add for
+category/brand, and per-product unit-conversion and price-tier editors).
+`src/api.ts` is the one place that knows the Tauri command shapes.
+
+Verified: `cargo test` — 15 tests total (10 domain unit tests, plus 5 integration
+tests against a real running Postgres: bootstrap/migrate/backup/shutdown, cluster
+reuse, stale pidfile, schema constraints, and a full product lifecycle including
+a real 23505 unique-violation on a duplicate SKU). `npm run build` and `tsc`
+clean. **Not verified: the frontend has never been driven against a live Tauri
+backend in a browser** — this environment has no way to click through a UI, so
+the Products screen's wiring to `invoke()` is type-checked and code-reviewed but
+not click-tested.
 
 ### 4 — Inventory · `TODO`
 Opening stock, stock-in/out, adjustments with reason, transfers, current stock,

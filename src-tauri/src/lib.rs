@@ -1,5 +1,6 @@
 pub mod db;
 pub mod domain;
+pub mod catalogue;
 mod printing;
 
 use tauri::{Emitter, Manager};
@@ -16,6 +17,18 @@ pub fn run() {
             db::commands::db_status,
             db::commands::db_health,
             db::commands::backup_now,
+            catalogue::list_categories,
+            catalogue::create_category,
+            catalogue::list_brands,
+            catalogue::create_brand,
+            catalogue::list_units,
+            catalogue::list_products,
+            catalogue::get_product,
+            catalogue::create_product,
+            catalogue::update_product,
+            catalogue::archive_product,
+            catalogue::set_product_unit,
+            catalogue::set_price_tier,
         ])
         .setup(|app| {
             let handle = app.handle().clone();

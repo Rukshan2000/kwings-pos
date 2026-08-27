@@ -213,3 +213,57 @@ button {
 .modal h3 { margin: 0 0 8px; font-size: 14px; color: var(--green); }
 
 @media print { .db-banner { display: none !important; } }
+
+/* ---------- Shell / nav ---------- */
+.shell { min-height: 100vh; display: flex; flex-direction: column; }
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.nav-brand { font-weight: 700; color: var(--green); margin-right: 16px; }
+.nav-link {
+  padding: 7px 14px;
+  border-radius: 7px;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 14px;
+}
+.nav-link:hover { background: #eef3ee; }
+.nav-link.active { background: var(--green); color: #fff; }
+.shell-body { flex: 1; padding: 16px; }
+.shell .db-banner { margin: 0 16px; }
+
+/* ---------- Products page ---------- */
+.products { display: grid; grid-template-columns: 1fr 380px; gap: 16px; align-items: start; }
+.products-list { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.products-search input { width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 12px; }
+.products-side { display: flex; flex-direction: column; gap: 16px; }
+.products-side h2 { margin: 0 0 12px; font-size: 15px; color: var(--green); }
+.products-side h3 { margin: 14px 0 6px; font-size: 13px; color: #556; }
+
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th { text-align: left; padding: 8px 6px; border-bottom: 2px solid var(--line); color: #667; font-weight: 600; }
+.table td { padding: 8px 6px; border-bottom: 1px solid #eef1ee; }
+.table tbody tr { cursor: pointer; }
+.table tbody tr:hover { background: #fafbfa; }
+.table tbody tr.row-selected { background: #eef6ee; }
+.table-actions { display: flex; gap: 6px; white-space: nowrap; }
+.table-actions button { padding: 4px 8px; font-size: 12px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+.table-actions .danger { color: #a33; border-color: #eac; }
+.table .empty { text-align: center; color: #889; padding: 20px; }
+
+.stack { display: flex; flex-direction: column; gap: 8px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stack input, .stack select, .row2 input, .row2 select {
+  padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px;
+}
+.quick-add { display: flex; gap: 8px; margin-top: 10px; }
+.quick-add input { flex: 1; padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; font-size: 13px; }
+.quick-add button { padding: 7px 12px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
+
+.plain-list { list-style: none; margin: 0 0 10px; padding: 0; font-size: 13px; }
+.plain-list li { padding: 5px 0; border-bottom: 1px dashed var(--line); }
