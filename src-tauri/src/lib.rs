@@ -3,6 +3,7 @@ pub mod domain;
 pub mod catalogue;
 pub mod inventory;
 pub mod purchasing;
+pub mod pos;
 mod printing;
 
 use tauri::{Emitter, Manager};
@@ -44,6 +45,11 @@ pub fn run() {
             purchasing::receive_purchase,
             purchasing::record_purchase_payment,
             purchasing::return_purchase_lines,
+            pos::hold_sale,
+            pos::list_held_sales,
+            pos::cancel_held_sale,
+            pos::complete_sale,
+            pos::sale_receipt,
         ])
         .setup(|app| {
             let handle = app.handle().clone();

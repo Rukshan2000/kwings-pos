@@ -12,9 +12,11 @@ import {
 export default function Settings({
   dbState,
   onClose,
+  embedded,
 }: {
   dbState: DbState;
   onClose: () => void;
+  embedded?: boolean;
 }) {
   const [names, setNames] = useState<string[]>([]);
   const [sysDefault, setSysDefault] = useState<string | null>(null);
@@ -45,9 +47,8 @@ export default function Settings({
     onClose();
   };
 
-  return (
-    <div className="modal-back" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+  const body = (
+      <div className={embedded ? "pane" : "modal"} onClick={(e) => e.stopPropagation()}>
         <h2>Printer Settings</h2>
 
         {!isDesktop() && (
@@ -140,6 +141,12 @@ export default function Settings({
           </button>
         </div>
       </div>
+  );
+
+  if (embedded) return body;
+  return (
+    <div className="modal-back" onClick={onClose}>
+      {body}
     </div>
   );
 }

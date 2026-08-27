@@ -46,6 +46,34 @@ export type ProductDetail = Product & {
   price_tiers: PriceTier[];
 };
 
+export type SaleLineIn = {
+  product_id: number;
+  unit_id: number;
+  quantity: string;
+  unit_price: string;
+  discount_amount: string;
+};
+
+export type PaymentIn = { method: string; amount: string };
+
+export type CheckoutInput = {
+  held_sale_id: number | null;
+  customer_id: number | null;
+  lines: SaleLineIn[];
+  payments: PaymentIn[];
+  discount_total: string;
+};
+
+export type SaleSummary = {
+  id: number;
+  invoice_number: string | null;
+  grand_total: string;
+  balance_due: string;
+};
+
+export type ReceiptLine = { name: string; qty: string; price: string };
+export type ReceiptData = { invoice_number: string; completed_at: string; lines: ReceiptLine[] };
+
 export type Supplier = {
   id: number;
   name: string;
@@ -160,4 +188,14 @@ export const api = {
   receivePurchase: (id: number) => invoke<PurchaseDetail>("receive_purchase", { id }),
   recordPurchasePayment: (purchaseId: number, amount: string, method: string) =>
     invoke<void>("record_purchase_payment", { purchaseId, amount, method }),
+
+  completeSale: (input: CheckoutInput) => invoke<SaleSummary>("complete_sale", { input }),
+  holdSale: (customerId: number | null, lines: SaleLineIn[]) =>
+    invoke<number>("hold_sale", { customerId, lines }),
+  listHeldSales: () =>
+    invoke<{ id: number; created_at: string; customer_id: number | null; customer_name: string | null; line_count: number; subtotal: string }[]>(
+      "list_held_sales"
+    ),
+  cancelHeldSale: (id: number) => invoke<void>("cancel_held_sale", { id }),
+  saleReceipt: (saleId: number) => invoke<ReceiptData>("sale_receipt", { saleId }),
 };
