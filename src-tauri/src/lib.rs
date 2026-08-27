@@ -1,4 +1,5 @@
 pub mod db;
+pub mod domain;
 mod printing;
 
 use tauri::{Emitter, Manager};

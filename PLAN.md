@@ -73,10 +73,24 @@ restart reuses the cluster, stale pidfile cleared). Windows paths verified only 
 
 **Gate:** installs and runs on a real till, leaves no orphan process.
 
-### 2 — Schema · `TODO`
-Complete MVP schema + migrations + seed data + `docs/schema.md`. Written **once**,
-covering phases 3–10, including multi-location and loyalty columns so they are never
-retrofitted. Tests for money, stock and unit-conversion math land here.
+### 2 — Schema · `AWAITING SIGN-OFF`
+Done: `0002_mvp_schema.sql` (431 lines) — users/roles/permissions/audit/shifts,
+locations, catalogue (products, categories, brands, units, per-product unit
+conversions, price tiers), inventory (append-only stock ledger, transfers),
+purchasing (suppliers, purchases, payments, returns), sales (gapless per-day
+invoice counter, sales, lines, split payments, discounts with authorization,
+returns), customers, expenses, payment-method settings. `0003_seed.sql` — units,
+default location, payment methods, expense categories, one admin user
+(Argon2id-hashed, verified against the `argon2` crate in `tests/argon2_seed.rs`,
+not just the tool that generated it). `docs/schema.md` describes every table and
+the non-obvious decisions (gapless counter over a SEQUENCE, `ref_table`/`ref_id`
+instead of a variant foreign key, loyalty columns present but unused).
+
+`src-tauri/src/domain/{money,units}.rs` — `Decimal`-based money and quantity types,
+banker's rounding matching Postgres `NUMERIC` `round()`, discount clamping, unit
+conversion. 10 unit tests, plus `tests/schema.rs` asserting the partial-unique and
+FK/CHECK constraints actually reject bad data against a real running Postgres.
+
 **Gate:** schema review before any feature is built on it.
 
 ### 3 — Catalogue · `TODO`

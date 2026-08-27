@@ -20,6 +20,7 @@ serde_json = "1"
 thiserror = "2"
 rand = "0.8"
 rust_decimal = { version = "1", features = ["serde-with-str"] }
+rust_decimal_macros = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "process"] }
 sqlx = { version = "0.8", default-features = false, features = [
   "runtime-tokio",
@@ -30,6 +31,7 @@ sqlx = { version = "0.8", default-features = false, features = [
   "chrono",
 ] }
 chrono = { version = "0.4", features = ["serde"] }
+argon2 = "0.5"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58", features = [
