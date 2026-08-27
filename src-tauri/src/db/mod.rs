@@ -3,6 +3,9 @@ pub mod commands;
 pub mod config;
 pub mod paths;
 pub mod server;
+pub mod winquote;
+#[cfg(windows)]
+pub mod winspawn;
 
 use std::path::PathBuf;
 use std::sync::Mutex;

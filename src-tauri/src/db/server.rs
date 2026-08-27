@@ -1,9 +1,63 @@
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use crate::db::config::{DbConfig, DB_NAME, DB_USER};
 use crate::db::{paths, DbError};
+
+/// Unifies a normally-spawned child (macOS/Linux, and every non-server Windows
+/// tool) with the restricted-token process used for `postgres`/`initdb` on
+/// Windows (see `winspawn.rs` for why that pair needs a different spawn path
+/// entirely). Only the handful of operations `PgServer` actually needs.
+enum ManagedChild {
+    Std(std::process::Child),
+    #[cfg(windows)]
+    Restricted(crate::db::winspawn::RestrictedProcess),
+}
+
+impl ManagedChild {
+    /// `Some(description)` once the process has exited, formatted the same
+    /// way regardless of which variant produced it.
+    fn try_wait(&mut self) -> Result<Option<String>, DbError> {
+        match self {
+            ManagedChild::Std(c) => Ok(c
+                .try_wait()
+                .map_err(DbError::Spawn)?
+                .map(|status| status.to_string())),
+            #[cfg(windows)]
+            ManagedChild::Restricted(p) => {
+                Ok(p.try_wait()?.map(|code| format!("exit code: {code}")))
+            }
+        }
+    }
+
+    /// Blocks until exit or `timeout`, then force-kills if it is still running.
+    /// Used only once `pg_ctl stop` has already been given its chance.
+    fn kill_after(&mut self, timeout: Duration) {
+        match self {
+            ManagedChild::Std(c) => {
+                let deadline = Instant::now() + timeout;
+                loop {
+                    match c.try_wait() {
+                        Ok(Some(_)) | Err(_) => return,
+                        Ok(None) if Instant::now() >= deadline => {
+                            let _ = c.kill();
+                            let _ = c.wait();
+                            return;
+                        }
+                        Ok(None) => std::thread::sleep(Duration::from_millis(100)),
+                    }
+                }
+            }
+            #[cfg(windows)]
+            ManagedChild::Restricted(p) => {
+                if !p.wait_timeout(timeout) {
+                    p.kill();
+                }
+            }
+        }
+    }
+}
 
 const READY_TIMEOUT: Duration = Duration::from_secs(60);
 const STOP_TIMEOUT: Duration = Duration::from_secs(30);
@@ -13,7 +67,7 @@ pub struct PgServer {
     pub root: PathBuf,
     pub pg_root: PathBuf,
     pub config: DbConfig,
-    child: Option<Child>,
+    child: Option<ManagedChild>,
     #[cfg(windows)]
     _job: job::Job,
 }
@@ -60,25 +114,45 @@ impl PgServer {
             .append(true)
             .open(paths::log_file(&root))?;
 
-        let mut cmd = Command::new(paths::exe(&pg_root, "postgres"));
-        cmd.arg("-D")
-            .arg(&data)
-            .arg("-p")
-            .arg(config.port.to_string())
-            // Loopback only. This database is never exposed to the network.
-            .arg("-c")
-            .arg("listen_addresses=127.0.0.1")
-            .arg("-c")
-            .arg("logging_collector=off")
-            .stdout(Stdio::from(log.try_clone()?))
-            .stderr(Stdio::from(log))
-            .stdin(Stdio::null());
-        no_window(&mut cmd);
-
-        let child = cmd.spawn().map_err(DbError::Spawn)?;
+        // Loopback only, always — this database is never exposed to the network.
+        let pg_args = vec![
+            "-D".to_string(),
+            data.display().to_string(),
+            "-p".to_string(),
+            config.port.to_string(),
+            "-c".to_string(),
+            "listen_addresses=127.0.0.1".to_string(),
+            "-c".to_string(),
+            "logging_collector=off".to_string(),
+        ];
 
         #[cfg(windows)]
-        job.assign(&child)?;
+        let child = {
+            // The Postgres backend refuses to run under any Windows account
+            // that is a member of Administrators, elevated or not (a hard
+            // Postgres security check, not configurable) — true of plenty of
+            // small-shop Windows accounts and of CI runners alike. See
+            // winspawn.rs for why this needs its own spawn path.
+            let restricted = crate::db::winspawn::spawn_restricted(
+                &paths::exe(&pg_root, "postgres"),
+                &pg_args,
+                &data,
+                &log,
+            )?;
+            job.assign_handle(restricted.raw_handle())?;
+            ManagedChild::Restricted(restricted)
+        };
+
+        #[cfg(not(windows))]
+        let child = {
+            let mut cmd = Command::new(paths::exe(&pg_root, "postgres"));
+            cmd.args(&pg_args)
+                .stdout(Stdio::from(log.try_clone()?))
+                .stderr(Stdio::from(log))
+                .stdin(Stdio::null());
+            no_window(&mut cmd);
+            ManagedChild::Std(cmd.spawn().map_err(DbError::Spawn)?)
+        };
 
         let mut server = PgServer {
             root,
@@ -104,7 +178,7 @@ impl PgServer {
             if let Some(child) = self.child.as_mut() {
                 if let Some(status) = child.try_wait()? {
                     return Err(DbError::Exited {
-                        status: status.to_string(),
+                        status,
                         log: self.tail_log(),
                     });
                 }
@@ -193,18 +267,10 @@ impl PgServer {
         no_window(&mut cmd);
         let _ = cmd.status();
 
-        let deadline = Instant::now() + STOP_TIMEOUT;
-        loop {
-            match child.try_wait()? {
-                Some(_) => return Ok(()),
-                None if Instant::now() >= deadline => {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    return Ok(());
-                }
-                None => std::thread::sleep(Duration::from_millis(100)),
-            }
-        }
+        // `pg_ctl stop -w` already waited up to STOP_TIMEOUT for a clean exit;
+        // this is only the force-kill fallback if that somehow didn't finish.
+        child.kill_after(Duration::from_secs(1));
+        Ok(())
     }
 
     fn tail_log(&self) -> String {
@@ -366,8 +432,6 @@ fn no_window(cmd: &mut Command) {
 /// including on a crash.
 #[cfg(windows)]
 mod job {
-    use std::process::Child;
-
     use crate::db::DbError;
 
     pub struct Job(windows::Win32::Foundation::HANDLE);
@@ -402,13 +466,14 @@ mod job {
             }
         }
 
-        pub fn assign(&self, child: &Child) -> Result<(), DbError> {
-            use std::os::windows::io::AsRawHandle;
-            use windows::Win32::Foundation::HANDLE;
+        /// Postgres is now always spawned via the restricted-token path (see
+        /// `winspawn.rs`), which hands back a raw process HANDLE directly —
+        /// there is no longer a `std::process::Child` in the picture for it.
+        pub fn assign_handle(&self, handle: windows::Win32::Foundation::HANDLE) -> Result<(), DbError> {
             use windows::Win32::System::JobObjects::AssignProcessToJobObject;
 
             unsafe {
-                AssignProcessToJobObject(self.0, HANDLE(child.as_raw_handle() as _))
+                AssignProcessToJobObject(self.0, handle)
                     .map_err(|e| DbError::Job(format!("AssignProcessToJobObject: {e}")))
             }
         }

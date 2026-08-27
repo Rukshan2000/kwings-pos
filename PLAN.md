@@ -92,6 +92,36 @@ restart reuses the cluster, stale pidfile cleared). Windows paths verified only 
    reproduces the exact scenario (forgets a live server's handle without
    running its Drop, confirms the next start takes over instead of erroring).
 
+3. `postgres.exe` (the backend server) refuses to run under any Windows
+   account that is a member of the Administrators group, elevated or not —
+   a hard-coded, non-configurable Postgres security check. Confirmed live on
+   the GitHub Actions Windows runner (an admin account) and a real
+   possibility on plenty of small-shop Windows PCs that log in as an admin
+   account by default. `std::process::Command` cannot launch a process under
+   an alternate token, so this was fixed by bypassing `Command` entirely for
+   the `postgres` spawn: `src-tauri/src/db/winspawn.rs` builds a restricted
+   copy of the app's own token (Administrators disabled, every privilege
+   dropped, via `CreateRestrictedToken`) and launches `postgres.exe` under it
+   with `CreateProcessAsUserW`. `initdb.exe` was left on the unmodified
+   `Command` path — the failure observed was specifically the server
+   process, not initdb, so extending the fix there was deferred pending
+   actual evidence rather than applied speculatively.
+   `src-tauri/src/db/server.rs` now has a `ManagedChild` enum unifying the
+   normal `std::process::Child` path (macOS/Linux, unchanged) with the
+   restricted-token path (Windows only). `src-tauri/src/db/winquote.rs`
+   implements the Windows command-line quoting `CreateProcessAsUserW` needs
+   in its raw command-line string, as portable Rust — the one part of this
+   fix that could actually be unit-tested (7 tests) on the machine that
+   wrote it.
+
+   **This is the largest unverified surface in the project.** Every symbol,
+   struct field, and feature gate `winspawn.rs` uses was checked individually
+   against the real windows-rs 0.58.0 source (fetched from GitHub, since
+   crates.io direct downloads were blocked in this environment) rather than
+   assumed, but none of it has run on an actual Windows machine. If the next
+   CI run fails inside this module rather than on a missing feature gate,
+   that is genuinely new ground.
+
 **Gate:** installs and runs on a real till, leaves no orphan process.
 
 ### 2 — Schema · `AWAITING SIGN-OFF`
