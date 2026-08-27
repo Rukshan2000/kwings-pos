@@ -265,30 +265,62 @@ fn init_cluster(pg_root: &Path, data: &Path, password: &str) -> Result<(), DbErr
 /// reasons that have nothing to do with PostgreSQL (privileged port, permissions),
 /// which would misreport a dead server as running. `pg_ctl status` checks the
 /// recorded PID against the process table, which is the actual question.
+///
+/// If it genuinely is running, that process can only be an orphan of *this* app:
+/// `data` is a private directory this app owns exclusively (nothing else on the
+/// machine is ever pointed at it), so a live server here cannot be some other
+/// legitimate database. The Windows Job Object is supposed to prevent this
+/// exact situation, but a non-graceful exit (killed dev server, crash before the
+/// job handle is created) can still orphan it — reproduced during phase 6
+/// development when a `tauri dev` process died mid-bootstrap and its Postgres
+/// was reparented to init. Since we know it is safe to touch, take it over with
+/// a graceful stop rather than refusing to start.
 fn clear_stale_pidfile(pg_root: &Path, data: &Path) -> Result<(), DbError> {
     let pidfile = data.join("postmaster.pid");
     if !pidfile.exists() {
         return Ok(());
     }
 
-    let mut cmd = Command::new(paths::exe(pg_root, "pg_ctl"));
-    cmd.arg("status")
-        .arg("-D")
-        .arg(data)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
-    no_window(&mut cmd);
+    let status = || -> std::io::Result<Option<i32>> {
+        let mut cmd = Command::new(paths::exe(pg_root, "pg_ctl"));
+        cmd.arg("status")
+            .arg("-D")
+            .arg(data)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        no_window(&mut cmd);
+        Ok(cmd.status()?.code())
+    };
 
     // 0 = running, 3 = not running, 4 = unusable data directory.
-    if matches!(cmd.status().map_err(DbError::Spawn)?.code(), Some(0)) {
-        let port = std::fs::read_to_string(&pidfile)
-            .ok()
-            .and_then(|t| t.lines().nth(3).and_then(|l| l.trim().parse().ok()))
-            .unwrap_or(0);
-        return Err(DbError::AlreadyRunning(port));
+    if matches!(status().map_err(DbError::Spawn)?, Some(0)) {
+        let mut stop = Command::new(paths::exe(pg_root, "pg_ctl"));
+        stop.arg("stop")
+            .arg("-D")
+            .arg(data)
+            .arg("-m")
+            .arg("fast")
+            .arg("-w")
+            .arg("-t")
+            .arg("30")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        no_window(&mut stop);
+        let _ = stop.status();
+
+        // If it is still running after a graceful stop was attempted, something
+        // is genuinely wrong (a hung process, a permissions issue) rather than a
+        // simple orphan — refuse instead of fighting it further.
+        if matches!(status().map_err(DbError::Spawn)?, Some(0)) {
+            let port = std::fs::read_to_string(&pidfile)
+                .ok()
+                .and_then(|t| t.lines().nth(3).and_then(|l| l.trim().parse().ok()))
+                .unwrap_or(0);
+            return Err(DbError::AlreadyRunning(port));
+        }
     }
 
-    std::fs::remove_file(&pidfile)?;
+    let _ = std::fs::remove_file(&pidfile);
     Ok(())
 }
 

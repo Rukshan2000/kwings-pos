@@ -71,6 +71,27 @@ hook creating `%PROGRAMDATA%\GreenPlusPOS` with a Users ACL; DB status banner an
 Verified locally on macOS (3 integration tests: bootstrap→migrate→backup→shutdown,
 restart reuses the cluster, stale pidfile cleared). Windows paths verified only by CI.
 
+**Field-found bugs, fixed post-signoff:**
+1. `db.ts` `watchDb` relied on a Tauri `db-ready` event plus a single one-shot
+   `db_status` poll. `listen()` only resolves once the backend confirms
+   registration, and on a fast machine Rust's bootstrap can emit before that
+   completes; the one-shot poll had the same race the other way. Both missed
+   left the "Starting the database..." banner stuck forever even though
+   Postgres was healthy the whole time. Fixed with a 400ms polling loop that
+   keeps checking until ready or error — immune to both races.
+2. A `tauri dev` process killed non-gracefully (Ctrl+C mid-bootstrap, a crash)
+   orphaned its Postgres child on macOS, where there is no Job Object
+   equivalent. The next launch's `pg_ctl status` correctly detected it was
+   genuinely running and refused to start a second instance over it (the
+   guard worked as designed) — but that left the shop stuck needing a manual
+   `pg_ctl stop`. Fixed: since the data directory is private to this app,
+   a live server found there can only be our own orphan, so
+   `clear_stale_pidfile` now attempts a graceful `pg_ctl stop -m fast` and
+   takes it over, falling back to the original refusal only if that stop
+   itself fails. New regression test `orphaned_but_still_running_server_is_taken_over`
+   reproduces the exact scenario (forgets a live server's handle without
+   running its Drop, confirms the next start takes over instead of erroring).
+
 **Gate:** installs and runs on a real till, leaves no orphan process.
 
 ### 2 — Schema · `AWAITING SIGN-OFF`

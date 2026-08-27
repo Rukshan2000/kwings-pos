@@ -116,6 +116,32 @@ fn restart_reuses_the_existing_cluster() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+/// Reproduces the real bug hit during phase 6 dev: a running server whose parent
+/// app already exited (killed dev process, crash before shutdown) — genuinely
+/// running, not a dead pidfile. Since the data directory is private to this app,
+/// the next start must take it over rather than refusing forever.
+#[test]
+fn orphaned_but_still_running_server_is_taken_over() {
+    let root = temp_root("orphan");
+    let first = PgServer::start(root.clone(), pg_root()).expect("first start");
+    let port = first.config.port;
+
+    // Simulate the app dying without calling stop(): drop the handle without
+    // running Drop's cleanup by forgetting it. The postgres process (and its
+    // real, valid postmaster.pid) is left behind and running, exactly like a
+    // killed `tauri dev` process leaves its child.
+    std::mem::forget(first);
+    assert!(!port_free(port), "the postgres process should still be running");
+
+    let mut second = PgServer::start(root.clone(), pg_root())
+        .expect("a genuinely running orphan of our own data dir must be taken over, not refused");
+    second.stop().expect("clean shutdown");
+    drop(second);
+
+    assert!(port_free(port), "no postgres should survive the takeover and second shutdown");
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 /// A `postmaster.pid` left behind by a killed server must not block startup.
 #[test]
 fn stale_pidfile_is_cleared() {
