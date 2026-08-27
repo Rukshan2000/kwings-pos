@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import Receipt from "./components/Receipt";
+import Settings from "./components/Settings";
+import { printBill } from "./printer";
 import { CATALOG, SHOP } from "./shop";
 import { Bill, Item, money, subtotal } from "./types";
 
@@ -13,6 +15,9 @@ export default function App() {
   const [price, setPrice] = useState("");
   const [billNumber, setBillNumber] = useState(newBillNumber);
   const [date, setDate] = useState(() => new Date());
+  const [showSettings, setShowSettings] = useState(false);
+  const [status, setStatus] = useState("");
+  const [printing, setPrinting] = useState(false);
 
   const bill: Bill = useMemo(() => ({ billNumber, date, items }), [billNumber, date, items]);
 
@@ -37,10 +42,20 @@ export default function App() {
     setDate(new Date());
   };
 
-  const print = () => {
-    setDate(new Date());
-    // Let the re-render flush before the (blocking) print dialog opens.
-    setTimeout(() => window.print(), 50);
+  const print = async () => {
+    const now = new Date();
+    setDate(now);
+    setPrinting(true);
+    setStatus("");
+    try {
+      await printBill({ billNumber, date: now, items });
+      setStatus(`Printed bill ${billNumber}`);
+      newBill();
+    } catch (e) {
+      setStatus(`Print failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setPrinting(false);
+    }
   };
 
   return (
@@ -108,18 +123,32 @@ export default function App() {
         </div>
 
         <div className="actions">
-          <button type="button" className="primary" disabled={!items.length} onClick={print}>
-            Print Bill
+          <button
+            type="button"
+            className="primary"
+            disabled={!items.length || printing}
+            onClick={print}
+          >
+            {printing ? "Printing…" : "Print Bill"}
           </button>
           <button type="button" onClick={newBill}>
             New Bill
           </button>
+          <button type="button" onClick={() => setShowSettings(true)}>
+            Settings
+          </button>
         </div>
+
+        {status && (
+          <p className={status.startsWith("Print failed") ? "warn" : "hint"}>{status}</p>
+        )}
       </div>
 
       <div className="preview">
         <Receipt bill={bill} />
       </div>
+
+      {showSettings && <Settings onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

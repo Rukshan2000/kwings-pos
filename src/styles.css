@@ -151,3 +151,48 @@ button {
     print-color-adjust: exact;
   }
 }
+
+/* ---------- Settings modal ---------- */
+.modal-back {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 30, 24, .45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 22px;
+  width: 420px;
+  max-width: 92vw;
+}
+.modal h2 { margin: 0 0 14px; font-size: 17px; color: var(--green); }
+.modal label { display: block; font-size: 13px; margin-bottom: 6px; color: #556; }
+.modal select {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+}
+.modal .check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 0;
+  font-size: 14px;
+  color: var(--ink);
+}
+.modal .check input { width: auto; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.modal-actions button { padding: 9px 16px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+
+.hint { font-size: 12px; color: #667; margin: 12px 0 0; line-height: 1.5; }
+.warn { font-size: 12px; color: #a33; margin: 12px 0 0; line-height: 1.5; }
+
+@media print {
+  .modal-back, .hint, .warn { display: none !important; }
+}
