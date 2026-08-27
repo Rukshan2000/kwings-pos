@@ -70,9 +70,9 @@ export default function Settings({
         </select>
         {loading && <p className="mt-1.5 text-xs text-slate-400">Looking for printers…</p>}
         {!loading && !names.length && isDesktop() && (
-          <p className="mt-1.5 text-xs text-rose-600">No printers found. Install the printer in Windows first.</p>
+          <p className="mt-1.5 text-xs text-amber-600">No printers found. Install the printer in Windows first.</p>
         )}
-        {error && <p className="mt-1.5 text-xs text-rose-600">{error}</p>}
+        {error && <p className="mt-1.5 text-xs text-amber-600">{error}</p>}
       </div>
 
       <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -107,7 +107,7 @@ export default function Settings({
         ) : dbState.kind === "browser" ? (
           <p className="text-xs text-slate-400">Not available in the browser.</p>
         ) : (
-          <p className="text-xs text-rose-600">{dbState.message}</p>
+          <p className="text-xs text-amber-600">{dbState.message}</p>
         )}
 
         <button
@@ -129,7 +129,7 @@ export default function Settings({
           {backingUp ? "Backing up…" : "Backup now"}
         </button>
         {backup && (
-          <p className={`mt-1.5 text-xs ${backup.startsWith("Backup failed") ? "text-rose-600" : "text-slate-500"}`}>
+          <p className={`mt-1.5 text-xs ${backup.startsWith("Backup failed") ? "text-amber-600" : "text-slate-500"}`}>
             {backup}
           </p>
         )}

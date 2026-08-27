@@ -248,7 +248,7 @@ export default function Products() {
               onChange={(e) => setForm({ ...form, low_stock_at: e.target.value })}
             />
 
-            {error && <p className="text-sm text-rose-600">{error}</p>}
+            {error && <p className="text-sm text-amber-600">{error}</p>}
 
             <div className="flex gap-2 pt-1">
               <button type="submit" className="btn-primary flex-1" disabled={save.isPending}>

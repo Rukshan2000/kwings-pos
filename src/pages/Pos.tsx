@@ -226,7 +226,7 @@ export default function Pos() {
                 type="button"
                 onClick={() => removeLine(l.id)}
                 aria-label="Remove"
-                className="text-slate-400 hover:text-rose-500 transition-colors"
+                className="text-slate-400 hover:text-amber-500 transition-colors"
               >
                 ×
               </button>
@@ -310,7 +310,7 @@ export default function Pos() {
         </div>
 
         {status && (
-          <p className={`text-sm ${status.startsWith("Checkout failed") ? "text-rose-600" : "text-slate-500"}`}>
+          <p className={`text-sm ${status.startsWith("Checkout failed") ? "text-amber-600" : "text-slate-500"}`}>
             {status}
           </p>
         )}

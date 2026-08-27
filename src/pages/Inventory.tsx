@@ -84,7 +84,7 @@ export default function Inventory() {
                   >
                     <td className="px-2 py-2.5 text-slate-800">{l.product_name}</td>
                     <td className="px-2 py-2.5 text-slate-500">{l.sku ?? "—"}</td>
-                    <td className={`px-2 py-2.5 font-medium ${low ? "text-rose-600" : "text-slate-800"}`}>
+                    <td className={`px-2 py-2.5 font-medium ${low ? "text-amber-600" : "text-slate-800"}`}>
                       {l.on_hand}
                     </td>
                     <td className="px-2 py-2.5 text-slate-500">{l.base_unit_code}</td>
@@ -136,7 +136,7 @@ export default function Inventory() {
                   required
                 />
               )}
-              {error && <p className="text-sm text-rose-600">{error}</p>}
+              {error && <p className="text-sm text-amber-600">{error}</p>}
               <button type="submit" className="btn-primary w-full" disabled={apply.isPending}>
                 {apply.isPending ? "Saving…" : "Apply"}
               </button>
@@ -151,7 +151,7 @@ export default function Inventory() {
               {movements.data?.map((m) => (
                 <li key={m.id} className="border-b border-slate-100 pb-2">
                   <span className="text-slate-400">{new Date(m.created_at).toLocaleString()}</span> · {m.reason} ·{" "}
-                  <b className={Number(m.quantity) > 0 ? "text-emerald-600" : "text-rose-600"}>
+                  <b className={Number(m.quantity) > 0 ? "text-emerald-600" : "text-amber-600"}>
                     {Number(m.quantity) > 0 ? `+${m.quantity}` : m.quantity}
                   </b>
                   {m.note && ` — ${m.note}`}

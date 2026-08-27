@@ -16,9 +16,9 @@ export default function DbBanner({ state }: { state: DbState }) {
   }
 
   return (
-    <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
       <p className="font-medium">Database unavailable. {state.message}</p>
-      <p className="mt-1 text-rose-600/80">
+      <p className="mt-1 text-amber-600/80">
         Sales cannot be saved until this is fixed. Printing still works.
       </p>
     </div>

@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-800 antialiased;
+    @apply bg-brand-50 text-slate-800 antialiased;
   }
 }
 
@@ -25,7 +25,7 @@
     @apply btn bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300;
   }
   .btn-danger {
-    @apply btn bg-white border border-rose-200 text-rose-600 hover:bg-rose-50;
+    @apply btn bg-white border border-amber-200 text-amber-600 hover:bg-amber-50;
   }
   .field {
     @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800

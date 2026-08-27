@@ -62,7 +62,7 @@ export default function Purchasing() {
     const styles: Record<string, string> = {
       draft: "bg-slate-100 text-slate-600",
       received: "bg-emerald-100 text-emerald-700",
-      cancelled: "bg-rose-100 text-rose-600",
+      cancelled: "bg-amber-100 text-amber-600",
     };
     return (
       <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${styles[status] ?? styles.draft}`}>
@@ -196,7 +196,7 @@ export default function Purchasing() {
             </div>
 
             <p className="text-sm text-slate-500">Total: <b className="text-slate-800">{total.toFixed(2)}</b></p>
-            {error && <p className="text-sm text-rose-600">{error}</p>}
+            {error && <p className="text-sm text-amber-600">{error}</p>}
             <button
               type="submit"
               className="btn-primary w-full"
