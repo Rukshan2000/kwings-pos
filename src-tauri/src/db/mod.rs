@@ -39,6 +39,8 @@ pub enum DbError {
     NotReady,
     #[error("backup failed: {0}")]
     Backup(String),
+    #[error("{0}")]
+    Conflict(String),
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]

@@ -46,6 +46,26 @@ export type ProductDetail = Product & {
   price_tiers: PriceTier[];
 };
 
+export type StockLevel = {
+  product_id: number;
+  product_name: string;
+  sku: string | null;
+  base_unit_code: string;
+  on_hand: string;
+  low_stock_at: string | null;
+  cost_price: string;
+};
+
+export type StockMovement = {
+  id: number;
+  quantity: string;
+  reason: string;
+  unit_cost: string | null;
+  note: string | null;
+  created_at: string;
+  created_by_name: string | null;
+};
+
 export type ProductInput = {
   sku: string | null;
   barcode: string | null;
@@ -83,4 +103,14 @@ export const api = {
     productId: number,
     input: { unit_id: number; kind: string; min_qty: string; price: string }
   ) => invoke<PriceTier[]>("set_price_tier", { productId, input }),
+
+  stockLevels: (lowStockOnly: boolean) =>
+    invoke<StockLevel[]>("stock_levels", { lowStockOnly }),
+  stockMovements: (productId: number) =>
+    invoke<StockMovement[]>("stock_movements", { productId }),
+  stockValuation: () => invoke<string>("stock_valuation"),
+  recordOpeningStock: (input: { product_id: number; quantity: string; unit_cost: string }) =>
+    invoke<void>("record_opening_stock", { input }),
+  adjustStock: (input: { product_id: number; quantity: string; reason_note: string }) =>
+    invoke<void>("adjust_stock", { input }),
 };

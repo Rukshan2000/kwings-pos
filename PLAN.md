@@ -117,10 +117,23 @@ backend in a browser** — this environment has no way to click through a UI, so
 the Products screen's wiring to `invoke()` is type-checked and code-reviewed but
 not click-tested.
 
-### 4 — Inventory · `TODO`
-Opening stock, stock-in/out, adjustments with reason, transfers, current stock,
-low-stock thresholds, valuation. Append-only movement ledger — movement rows are
-never mutated.
+### 4 — Inventory · `AWAITING SIGN-OFF`
+Done: `src-tauri/src/inventory/` — current stock is always `SUM(quantity)` over the
+`stock_movement` ledger (never a stored counter, so it cannot drift from the ledger
+that is supposed to explain it); low-stock filter; movement history per product;
+valuation as `on_hand × current cost_price` (explicitly not FIFO/moving-average —
+documented as such in code); opening-stock recording guarded against being run
+twice for the same product (would silently double the shop's real stock).
+Purchase/sale/transfer movements themselves land in phases 5/6/4-transfer-UI as
+those features are built — the ledger and its invariants are what this phase
+proves. `src/pages/Inventory.tsx` — stock table with low-stock filter and
+highlighting, adjustment/opening-stock form, movement history panel.
+
+Verified: 3 new integration tests against real Postgres — ledger sum matches
+hand-computed stock after opening/sale/adjustment rows, the ledger keeps all rows
+rather than merging them, the double-opening-stock guard, and the low-stock
+boundary condition (`on_hand <= threshold`, not `<`). 18 Rust tests total.
+`npm run build` clean. Frontend not click-tested (see phase 3 note — unchanged).
 
 ### 5 — Purchasing · `TODO`
 Suppliers, purchase entry + invoice, stock intake, purchase returns, supplier

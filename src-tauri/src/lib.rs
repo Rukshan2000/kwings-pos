@@ -1,6 +1,7 @@
 pub mod db;
 pub mod domain;
 pub mod catalogue;
+pub mod inventory;
 mod printing;
 
 use tauri::{Emitter, Manager};
@@ -29,6 +30,11 @@ pub fn run() {
             catalogue::archive_product,
             catalogue::set_product_unit,
             catalogue::set_price_tier,
+            inventory::stock_levels,
+            inventory::stock_movements,
+            inventory::stock_valuation,
+            inventory::record_opening_stock,
+            inventory::adjust_stock,
         ])
         .setup(|app| {
             let handle = app.handle().clone();

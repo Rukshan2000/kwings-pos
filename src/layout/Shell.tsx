@@ -6,6 +6,7 @@ import { SHOP } from "../shop";
 const LINKS = [
   { to: "/", label: "POS", end: true },
   { to: "/products", label: "Products" },
+  { to: "/inventory", label: "Inventory" },
 ];
 
 export default function Shell({ dbState }: { dbState: DbState }) {
