@@ -54,6 +54,31 @@ pub enum DbError {
     Migrate(#[from] sqlx::migrate::MigrateError),
 }
 
+/// Master data — categories, brands, units, suppliers — is typed by hand, so the
+/// same name arriving twice is an ordinary mistake and deserves a sentence the
+/// user can act on, not the raw Postgres unique-violation text.
+pub fn duplicate(e: sqlx::Error, what: &str, value: &str) -> DbError {
+    let is_duplicate = matches!(
+        &e,
+        sqlx::Error::Database(db) if db.code().as_deref() == Some("23505")
+    );
+    if is_duplicate {
+        DbError::Conflict(format!("a {what} called '{value}' already exists"))
+    } else {
+        DbError::from(e)
+    }
+}
+
+/// Trimmed, and rejected if that leaves nothing — a row named " " is invisible
+/// in every dropdown that offers it.
+pub fn require_name(value: &str, what: &str) -> Result<String, DbError> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err(DbError::Conflict(format!("a {what} needs a name")));
+    }
+    Ok(trimmed.to_string())
+}
+
 /// Tauri commands return strings to the frontend; the detail is preserved in the
 /// message rather than a code, because every one of these is an install-level
 /// problem a human has to read.

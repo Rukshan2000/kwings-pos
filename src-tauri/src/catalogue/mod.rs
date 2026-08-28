@@ -9,7 +9,7 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool};
 
-use crate::db::{AppDb, DbError};
+use crate::db::{duplicate, require_name, AppDb, DbError};
 
 #[derive(Serialize, FromRow)]
 pub struct Category {
@@ -144,31 +144,6 @@ async fn fetch_price_tiers(pool: &PgPool, product_id: i64) -> Result<Vec<PriceTi
     .bind(product_id)
     .fetch_all(pool)
     .await?)
-}
-
-/// Master data is typed by hand, so the same name arriving twice is an ordinary
-/// mistake and deserves a sentence the cashier can act on — not the raw
-/// Postgres unique-violation text.
-fn duplicate(e: sqlx::Error, what: &str, value: &str) -> DbError {
-    let is_duplicate = matches!(
-        &e,
-        sqlx::Error::Database(db) if db.code().as_deref() == Some("23505")
-    );
-    if is_duplicate {
-        DbError::Conflict(format!("a {what} called '{value}' already exists"))
-    } else {
-        DbError::from(e)
-    }
-}
-
-/// Trimmed, and rejected if that leaves nothing — a row named " " is invisible
-/// in every dropdown that offers it.
-fn require_name(value: &str, what: &str) -> Result<String, DbError> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        return Err(DbError::Conflict(format!("a {what} needs a name")));
-    }
-    Ok(trimmed.to_string())
 }
 
 #[tauri::command]

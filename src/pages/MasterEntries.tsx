@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "../api";
+import { lkr } from "../types";
 
 /**
  * The shop's own vocabulary: the units it sells by, and the categories and
@@ -19,6 +20,7 @@ export default function MasterEntries() {
   const units = useQuery({ queryKey: ["units"], queryFn: api.units });
   const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
   const brands = useQuery({ queryKey: ["brands"], queryFn: api.brands });
+  const suppliers = useQuery({ queryKey: ["suppliers"], queryFn: api.suppliers });
 
   // One handler for all three: they differ only in what they invalidate and
   // what they call.
@@ -43,13 +45,18 @@ export default function MasterEntries() {
     mutationFn: (name: string) => api.createBrand(name),
     ...added("brands", "Brand"),
   });
+  const addSupplier = useMutation({
+    mutationFn: (input: { name: string; phone: string | null; address: string | null }) =>
+      api.createSupplier(input),
+    ...added("suppliers", "Supplier"),
+  });
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-xl font-semibold text-slate-800">Master Entries</h1>
         <p className="text-sm text-slate-500">
-          Units, categories and brands used across products, purchasing and the till.
+          Units, categories, brands and suppliers used across products, purchasing and the till.
         </p>
       </div>
 
@@ -117,6 +124,53 @@ export default function MasterEntries() {
           <NameList names={brands.data?.map((b) => ({ id: b.id, name: b.name }))} />
         </Panel>
       </div>
+
+      {/* Suppliers get the full width: they carry contact details and a running
+          balance, which is more than a name in a list. */}
+      <Panel
+        title="Suppliers"
+        hint="Who stock is bought from. Purchases are raised against these, and what is still owed is tracked per supplier."
+        count={suppliers.data?.length}
+      >
+        <form
+          className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const field = (n: string) => (form.elements.namedItem(n) as HTMLInputElement).value.trim();
+            const name = field("name");
+            if (!name) return;
+            addSupplier.mutate(
+              { name, phone: field("phone") || null, address: field("address") || null },
+              { onSuccess: () => form.reset() }
+            );
+          }}
+        >
+          <input className="field !py-1.5 text-xs" name="name" placeholder="Name *" aria-label="Supplier name" />
+          <input className="field !py-1.5 text-xs" name="phone" placeholder="Phone" aria-label="Supplier phone" />
+          <input className="field !py-1.5 text-xs" name="address" placeholder="Address" aria-label="Supplier address" />
+          <button type="submit" className="btn-secondary !py-1.5 !px-3 text-xs" disabled={addSupplier.isPending}>
+            Add
+          </button>
+        </form>
+
+        <ul className="mt-3 divide-y divide-slate-100 text-sm">
+          {suppliers.data?.map((sup) => (
+            <li key={sup.id} className="flex items-center justify-between gap-3 py-2">
+              <span className="min-w-0">
+                <span className="text-slate-700">{sup.name}</span>
+                {sup.phone && <span className="ml-2 text-xs text-slate-400">{sup.phone}</span>}
+              </span>
+              {Number(sup.outstanding) > 0 && (
+                <span className="shrink-0 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                  {lkr(Number(sup.outstanding))} owed
+                </span>
+              )}
+            </li>
+          ))}
+          {suppliers.data?.length === 0 && <li className="py-2 text-slate-400">None yet.</li>}
+        </ul>
+      </Panel>
     </div>
   );
 }

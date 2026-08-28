@@ -10,7 +10,7 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool};
 
-use crate::db::{AppDb, DbError};
+use crate::db::{require_name, AppDb, DbError};
 
 #[derive(Serialize, FromRow)]
 pub struct Supplier {
@@ -114,10 +114,17 @@ pub async fn create_supplier(
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
 
+    // Supplier names are not unique in the schema — two shops really can share a
+    // name — so there is nothing to reject here beyond an empty one. Blank
+    // contact fields are stored as NULL rather than "", so "no phone recorded"
+    // and "phone recorded as nothing" cannot drift apart.
+    let name = require_name(&input.name, "supplier")?;
+    let blank_to_none = |v: Option<String>| v.filter(|s| !s.trim().is_empty()).map(|s| s.trim().to_string());
+
     let id: i64 = sqlx::query_scalar("INSERT INTO supplier (name, phone, address) VALUES ($1, $2, $3) RETURNING id")
-        .bind(input.name.trim())
-        .bind(input.phone)
-        .bind(input.address)
+        .bind(&name)
+        .bind(blank_to_none(input.phone))
+        .bind(blank_to_none(input.address))
         .fetch_one(&db.pool)
         .await?;
 

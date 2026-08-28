@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api";
+import { lkr } from "../types";
 
 type Line = { product_id: number; unit_id: number; quantity: string; unit_cost: string };
 
@@ -15,7 +17,6 @@ export default function Purchasing() {
   const [cost, setCost] = useState("");
   const [error, setError] = useState("");
   const [selectedPurchase, setSelectedPurchase] = useState<number | null>(null);
-  const [newSupplierName, setNewSupplierName] = useState("");
 
   const suppliers = useQuery({ queryKey: ["suppliers"], queryFn: api.suppliers });
   const products = useQuery({ queryKey: ["products", ""], queryFn: () => api.products() });
@@ -98,8 +99,8 @@ export default function Purchasing() {
                   <td className="px-2 py-2.5 text-slate-800">{p.supplier_name}</td>
                   <td className="px-2 py-2.5 text-slate-500">{p.invoice_number ?? "—"}</td>
                   <td className="px-2 py-2.5">{statusPill(p.status)}</td>
-                  <td className="px-2 py-2.5 text-slate-800">{p.total}</td>
-                  <td className="px-2 py-2.5 text-slate-500">{p.paid}</td>
+                  <td className="px-2 py-2.5 text-slate-800">{lkr(Number(p.total))}</td>
+                  <td className="px-2 py-2.5 text-slate-500">{lkr(Number(p.paid))}</td>
                 </tr>
               ))}
               {purchases.data?.length === 0 && (
@@ -118,7 +119,7 @@ export default function Purchasing() {
             <ul className="mb-3 space-y-1 text-sm text-slate-600">
               {detail.data.lines.map((l) => (
                 <li key={l.id}>
-                  {l.product_name}: {l.quantity} {l.unit_code} @ {l.unit_cost} = {l.line_total}
+                  {l.product_name}: {l.quantity} {l.unit_code} @ {lkr(Number(l.unit_cost))} = {lkr(Number(l.line_total))}
                 </li>
               ))}
             </ul>
@@ -149,9 +150,18 @@ export default function Purchasing() {
             <select className="field" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} required>
               <option value="">Supplier…</option>
               {suppliers.data?.map((s) => (
-                <option key={s.id} value={s.id}>{s.name} (owed {s.outstanding})</option>
+                <option key={s.id} value={s.id}>{s.name} (owed {lkr(Number(s.outstanding))})</option>
               ))}
             </select>
+            {suppliers.data?.length === 0 && (
+              <p className="col-span-full text-xs text-slate-400">
+                No suppliers yet — add one under{" "}
+                <Link className="text-brand-600 hover:underline" to="/master-entries">
+                  Master Entries
+                </Link>
+                .
+              </p>
+            )}
             <input
               className="field"
               placeholder="Invoice number"
@@ -164,7 +174,7 @@ export default function Purchasing() {
               {lines.map((l, i) => {
                 const p = products.data?.find((x) => x.id === l.product_id);
                 const u = units.data?.find((x) => x.id === l.unit_id);
-                return <li key={i}>{p?.name ?? l.product_id}: {l.quantity} {u?.code} @ {l.unit_cost}</li>;
+                return <li key={i}>{p?.name ?? l.product_id}: {l.quantity} {u?.code} @ {lkr(Number(l.unit_cost))}</li>;
               })}
             </ul>
             <select className="field" value={productId} onChange={(e) => setProductId(e.target.value)}>
@@ -207,27 +217,6 @@ export default function Purchasing() {
           </form>
         </div>
 
-        <div className="card p-6">
-          <h2 className="mb-3 text-sm font-semibold text-brand-700">New Supplier</h2>
-          <form
-            className="grid grid-cols-[1fr_auto] gap-2"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (!newSupplierName.trim()) return;
-              await api.createSupplier({ name: newSupplierName.trim(), phone: null, address: null });
-              setNewSupplierName("");
-              qc.invalidateQueries({ queryKey: ["suppliers"] });
-            }}
-          >
-            <input
-              className="field"
-              placeholder="Name"
-              value={newSupplierName}
-              onChange={(e) => setNewSupplierName(e.target.value)}
-            />
-            <button type="submit" className="btn-secondary">Add</button>
-          </form>
-        </div>
       </div>
     </div>
   );
