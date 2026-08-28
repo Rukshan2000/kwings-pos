@@ -185,12 +185,18 @@ async fn to_base_qty(
 
 /// Saves the current cart without affecting stock or invoice numbering — both of
 /// those only happen at `complete_sale`.
+///
+/// `held_sale_id` is set when re-holding a cart that was resumed from a held
+/// sale, so it is updated in place. Without it, parking a resumed cart would
+/// leave the original held sale behind alongside a new one holding the same
+/// items.
 #[tauri::command]
 pub async fn hold_sale(
     state: tauri::State<'_, AppDb>,
     customer_id: Option<i64>,
     lines: Vec<SaleLineInput>,
     bill_discount: Option<DiscountInput>,
+    held_sale_id: Option<i64>,
 ) -> Result<i64, DbError> {
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
@@ -203,17 +209,46 @@ pub async fn hold_sale(
 
     let mut tx = db.pool.begin().await?;
 
-    let sale_id: i64 = sqlx::query_scalar(
-        "INSERT INTO sale (location_id, customer_id, status, subtotal, discount_total, grand_total)
-         VALUES ($1, $2, 'held', $3, $4, $5) RETURNING id",
-    )
-    .bind(default_location())
-    .bind(customer_id)
-    .bind(totals.subtotal)
-    .bind(totals.discount_total)
-    .bind(totals.grand_total)
-    .fetch_one(&mut *tx)
-    .await?;
+    let sale_id = match held_sale_id {
+        Some(id) => {
+            let status: String = sqlx::query_scalar("SELECT status::text FROM sale WHERE id = $1")
+                .bind(id)
+                .fetch_one(&mut *tx)
+                .await?;
+            if status != "held" {
+                return Err(DbError::Conflict(format!(
+                    "sale is '{status}', not 'held' — it cannot be re-held"
+                )));
+            }
+            clear_sale_lines(&mut tx, id).await?;
+            sqlx::query(
+                "UPDATE sale SET customer_id = $1, subtotal = $2, discount_total = $3,
+                                 grand_total = $4
+                 WHERE id = $5",
+            )
+            .bind(customer_id)
+            .bind(totals.subtotal)
+            .bind(totals.discount_total)
+            .bind(totals.grand_total)
+            .bind(id)
+            .execute(&mut *tx)
+            .await?;
+            id
+        }
+        None => {
+            sqlx::query_scalar(
+                "INSERT INTO sale (location_id, customer_id, status, subtotal, discount_total, grand_total)
+                 VALUES ($1, $2, 'held', $3, $4, $5) RETURNING id",
+            )
+            .bind(default_location())
+            .bind(customer_id)
+            .bind(totals.subtotal)
+            .bind(totals.discount_total)
+            .bind(totals.grand_total)
+            .fetch_one(&mut *tx)
+            .await?
+        }
+    };
 
     write_lines_and_discounts(&mut tx, sale_id, &lines, &totals, bill_discount).await?;
 
@@ -323,6 +358,85 @@ pub async fn list_held_sales(state: tauri::State<'_, AppDb>) -> Result<Vec<HeldS
     )
     .fetch_all(&db.pool)
     .await?)
+}
+
+/// A held sale's saved cart, in the shape the till needs to rebuild it.
+#[derive(Serialize, FromRow)]
+pub struct HeldSaleLine {
+    pub product_id: i64,
+    pub name: String,
+    pub unit_id: i64,
+    pub quantity: Decimal,
+    pub unit_price: Decimal,
+    /// The discount as it was typed, so resuming shows "10%" again rather than
+    /// the amount it happened to work out to on the original cart.
+    pub discount_kind: Option<String>,
+    pub discount_value: Option<Decimal>,
+}
+
+#[derive(Serialize)]
+pub struct HeldDiscount {
+    pub kind: String,
+    pub value: Decimal,
+}
+
+#[derive(Serialize)]
+pub struct HeldSaleDetail {
+    pub id: i64,
+    pub customer_id: Option<i64>,
+    pub lines: Vec<HeldSaleLine>,
+    pub bill_discount: Option<HeldDiscount>,
+}
+
+/// Everything needed to put a held cart back on the screen.
+///
+/// Held sales were previously write-only: `list_held_sales` could show that one
+/// existed, but nothing could read its lines back, so "Resume" had no cart to
+/// restore.
+#[tauri::command]
+pub async fn held_sale(state: tauri::State<'_, AppDb>, id: i64) -> Result<HeldSaleDetail, DbError> {
+    let guard = state.0.read().await;
+    let db = guard.as_ref().ok_or(DbError::NotReady)?;
+
+    let (status, customer_id): (String, Option<i64>) =
+        sqlx::query_as("SELECT status::text, customer_id FROM sale WHERE id = $1")
+            .bind(id)
+            .fetch_one(&db.pool)
+            .await?;
+    if status != "held" {
+        return Err(DbError::Conflict(format!(
+            "sale is '{status}', not 'held' — it cannot be resumed"
+        )));
+    }
+
+    let lines = sqlx::query_as(
+        "SELECT l.product_id, p.name, l.unit_id, l.quantity, l.unit_price,
+                d.kind::text AS discount_kind, d.value AS discount_value
+         FROM sale_line l
+         JOIN product p ON p.id = l.product_id
+         LEFT JOIN sale_discount d ON d.sale_line_id = l.id AND d.scope = 'line'
+         WHERE l.sale_id = $1
+         ORDER BY l.id",
+    )
+    .bind(id)
+    .fetch_all(&db.pool)
+    .await?;
+
+    let bill_discount = sqlx::query_as::<_, (String, Decimal)>(
+        "SELECT kind::text, value FROM sale_discount
+         WHERE sale_id = $1 AND scope = 'bill' LIMIT 1",
+    )
+    .bind(id)
+    .fetch_optional(&db.pool)
+    .await?
+    .map(|(kind, value)| HeldDiscount { kind, value });
+
+    Ok(HeldSaleDetail {
+        id,
+        customer_id,
+        lines,
+        bill_discount,
+    })
 }
 
 /// Only a held sale can be cancelled here — a completed sale has already moved

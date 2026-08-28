@@ -48,6 +48,7 @@ pub fn run() {
             purchasing::return_purchase_lines,
             pos::hold_sale,
             pos::list_held_sales,
+            pos::held_sale,
             pos::cancel_held_sale,
             pos::complete_sale,
             pos::sale_receipt,

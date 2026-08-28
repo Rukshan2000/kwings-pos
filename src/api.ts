@@ -88,6 +88,23 @@ export type ReceiptData = {
   grand_total: string;
 };
 
+export type HeldSaleLine = {
+  product_id: number;
+  name: string;
+  unit_id: number;
+  quantity: string;
+  unit_price: string;
+  discount_kind: "percent" | "fixed" | null;
+  discount_value: string | null;
+};
+
+export type HeldSaleDetail = {
+  id: number;
+  customer_id: number | null;
+  lines: HeldSaleLine[];
+  bill_discount: { kind: "percent" | "fixed"; value: string } | null;
+};
+
 export type Supplier = {
   id: number;
   name: string;
@@ -204,12 +221,17 @@ export const api = {
     invoke<void>("record_purchase_payment", { purchaseId, amount, method }),
 
   completeSale: (input: CheckoutInput) => invoke<SaleSummary>("complete_sale", { input }),
-  holdSale: (customerId: number | null, lines: SaleLineIn[], billDiscount: DiscountIn | null) =>
-    invoke<number>("hold_sale", { customerId, lines, billDiscount }),
+  holdSale: (
+    customerId: number | null,
+    lines: SaleLineIn[],
+    billDiscount: DiscountIn | null,
+    heldSaleId: number | null
+  ) => invoke<number>("hold_sale", { customerId, lines, billDiscount, heldSaleId }),
   listHeldSales: () =>
     invoke<{ id: number; created_at: string; customer_id: number | null; customer_name: string | null; line_count: number; subtotal: string }[]>(
       "list_held_sales"
     ),
+  heldSale: (id: number) => invoke<HeldSaleDetail>("held_sale", { id }),
   cancelHeldSale: (id: number) => invoke<void>("cancel_held_sale", { id }),
   saleReceipt: (saleId: number) => invoke<ReceiptData>("sale_receipt", { saleId }),
 };

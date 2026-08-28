@@ -49,6 +49,7 @@ export default function Pos() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [billDiscount, setBillDiscount] = useState<Discount | undefined>();
   const [editingDiscount, setEditingDiscount] = useState<string | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState<number | null>(null);
   const [payments, setPayments] = useState<Payment[]>([{ method: "cash", amount: "" }]);
   const [heldSaleId, setHeldSaleId] = useState<number | null>(null);
   const [showHeld, setShowHeld] = useState(false);
@@ -169,12 +170,61 @@ export default function Pos() {
     }));
 
   const hold = useMutation({
-    mutationFn: () => api.holdSale(null, toLines(), toDiscountIn(billDiscount)),
+    mutationFn: () => api.holdSale(null, toLines(), toDiscountIn(billDiscount), heldSaleId),
     onSuccess: () => {
       resetCart();
       qc.invalidateQueries({ queryKey: ["held-sales"] });
       setStatus("Sale held.");
     },
+  });
+
+  // Resuming has to rebuild the cart, not just remember the id: without this the
+  // button set `heldSaleId` against an empty cart, so nothing appeared on screen
+  // and "Complete Sale" stayed disabled.
+  const resume = useMutation({
+    mutationFn: (id: number) => api.heldSale(id),
+    onSuccess: (sale) => {
+      setCart(
+        sale.lines.map((l) => ({
+          id: uid(),
+          productId: l.product_id,
+          unitId: l.unit_id,
+          name: l.name,
+          qty: Number(l.quantity),
+          price: Number(l.unit_price),
+          discount:
+            l.discount_kind && l.discount_value !== null
+              ? { kind: l.discount_kind, value: Number(l.discount_value) }
+              : undefined,
+        }))
+      );
+      setBillDiscount(
+        sale.bill_discount
+          ? { kind: sale.bill_discount.kind, value: Number(sale.bill_discount.value) }
+          : undefined
+      );
+      setHeldSaleId(sale.id);
+      setPayments([{ method: "cash", amount: "" }]);
+      setShowPayment(false);
+      setShowHeld(false);
+      setStatus(`Resumed held sale #${sale.id}.`);
+    },
+    onError: (e) => setStatus(`Could not resume: ${e instanceof Error ? e.message : String(e)}`),
+  });
+
+  // Discarding is deliberately two clicks: a held cart is someone's parked
+  // shopping, and there is no undo once its lines are gone.
+  const discard = useMutation({
+    mutationFn: (id: number) => api.cancelHeldSale(id),
+    onSuccess: (_r, id) => {
+      setConfirmDiscard(null);
+      // If the cart on screen came from this sale, it no longer has a home to
+      // go back to — clear it rather than leave it pointing at a cancelled id.
+      if (heldSaleId === id) resetCart();
+      qc.invalidateQueries({ queryKey: ["held-sales"] });
+      setStatus(`Discarded held sale #${id}.`);
+    },
+    onError: (e) => setStatus(`Could not discard: ${e instanceof Error ? e.message : String(e)}`),
   });
 
   const checkout = useMutation({
@@ -248,16 +298,44 @@ export default function Pos() {
                     <span className="text-slate-600">
                       #{h.id} · {h.line_count} item(s) · {lkr(Number(h.subtotal))}
                     </span>
-                    <button
-                      type="button"
-                      className="btn-secondary !py-1 !px-2.5 text-xs"
-                      onClick={() => {
-                        setHeldSaleId(h.id);
-                        setShowHeld(false);
-                      }}
-                    >
-                      Resume
-                    </button>
+                    <span className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        className="btn-secondary !py-1 !px-2.5 text-xs disabled:opacity-40"
+                        disabled={resume.isPending}
+                        onClick={() => resume.mutate(h.id)}
+                      >
+                        {resume.isPending && resume.variables === h.id ? "Loading…" : "Resume"}
+                      </button>
+                      {confirmDiscard === h.id ? (
+                        <>
+                          <button
+                            type="button"
+                            className="rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-40"
+                            disabled={discard.isPending}
+                            onClick={() => discard.mutate(h.id)}
+                          >
+                            {discard.isPending ? "Discarding…" : "Confirm"}
+                          </button>
+                          <button
+                            type="button"
+                            className="px-1.5 text-xs text-slate-400 hover:text-slate-600"
+                            onClick={() => setConfirmDiscard(null)}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="px-1.5 text-xs text-slate-400 hover:text-amber-600"
+                          onClick={() => setConfirmDiscard(h.id)}
+                          aria-label={`Discard held sale ${h.id}`}
+                        >
+                          Discard
+                        </button>
+                      )}
+                    </span>
                   </li>
                 ))}
               </ul>

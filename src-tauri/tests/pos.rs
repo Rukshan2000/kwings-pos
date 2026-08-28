@@ -277,3 +277,68 @@ async fn discounts_are_recorded_against_the_line_and_the_bill() {
     server.stop().unwrap();
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// Mirrors the query behind `pos::held_sale`. The LEFT JOIN is the part worth
+/// testing: an undiscounted line must still come back (an inner join would drop
+/// it, resuming a cart with items missing), and a discounted one must come back
+/// exactly once with the value as it was typed.
+#[tokio::test]
+async fn a_held_cart_reads_back_with_and_without_line_discounts() {
+    use rust_decimal::Decimal;
+
+    let root = temp_root("resume");
+    let (mut server, pool) = migrated_pool(&root).await;
+    let pc: i64 = sqlx::query_scalar("SELECT id FROM unit WHERE code = 'pc'").fetch_one(&pool).await.unwrap();
+    let plain = stocked_product(&pool, "Urea 50kg Bag", "40").await;
+    let discounted = stocked_product(&pool, "Weedicide 1L", "40").await;
+
+    let sale_id: i64 = sqlx::query_scalar(
+        "INSERT INTO sale (location_id, status, subtotal, discount_total, grand_total)
+         VALUES (1, 'held', 300.00, 20.00, 280.00) RETURNING id"
+    ).fetch_one(&pool).await.unwrap();
+
+    for (product, qty, price) in [(plain, "1", "100.00"), (discounted, "2", "100.00")] {
+        let line_id: i64 = sqlx::query_scalar(
+            "INSERT INTO sale_line (sale_id, product_id, unit_id, quantity, unit_price, discount_amount, line_total)
+             VALUES ($1, $2, $3, $4::numeric, $5::numeric, 0, 0) RETURNING id"
+        ).bind(sale_id).bind(product).bind(pc).bind(qty).bind(price)
+         .fetch_one(&pool).await.unwrap();
+
+        if product == discounted {
+            sqlx::query(
+                "INSERT INTO sale_discount (sale_id, sale_line_id, scope, kind, value, amount)
+                 VALUES ($1, $2, 'line', 'percent', 10, 20.00)"
+            ).bind(sale_id).bind(line_id).execute(&pool).await.unwrap();
+        }
+    }
+    // A bill discount must not leak into any line's row.
+    sqlx::query(
+        "INSERT INTO sale_discount (sale_id, sale_line_id, scope, kind, value, amount)
+         VALUES ($1, NULL, 'bill', 'fixed', 15.00, 15.00)"
+    ).bind(sale_id).execute(&pool).await.unwrap();
+
+    let rows: Vec<(i64, String, Option<String>, Option<Decimal>)> = sqlx::query_as(
+        "SELECT l.product_id, p.name, d.kind::text, d.value
+         FROM sale_line l
+         JOIN product p ON p.id = l.product_id
+         LEFT JOIN sale_discount d ON d.sale_line_id = l.id AND d.scope = 'line'
+         WHERE l.sale_id = $1
+         ORDER BY l.id"
+    ).bind(sale_id).fetch_all(&pool).await.unwrap();
+
+    assert_eq!(rows.len(), 2, "both lines come back, discounted or not");
+    assert_eq!(rows[0].0, plain);
+    assert_eq!(rows[0].2, None, "an undiscounted line has no discount, not a missing row");
+    assert_eq!(rows[1].0, discounted);
+    assert_eq!(rows[1].2.as_deref(), Some("percent"));
+    assert_eq!(rows[1].3, Some("10".parse().unwrap()), "the typed value, not the amount it came to");
+
+    let bill: Option<(String, Decimal)> = sqlx::query_as(
+        "SELECT kind::text, value FROM sale_discount WHERE sale_id = $1 AND scope = 'bill' LIMIT 1"
+    ).bind(sale_id).fetch_optional(&pool).await.unwrap();
+    assert_eq!(bill, Some(("fixed".into(), "15.00".parse().unwrap())));
+
+    pool.close().await;
+    server.stop().unwrap();
+    let _ = std::fs::remove_dir_all(&root);
+}
