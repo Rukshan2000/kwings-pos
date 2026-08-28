@@ -5,11 +5,16 @@ use std::time::{Duration, Instant};
 use crate::db::config::{DbConfig, DB_NAME, DB_USER};
 use crate::db::{paths, DbError};
 
-/// Unifies a normally-spawned child (macOS/Linux, and every non-server Windows
-/// tool) with the restricted-token process used for `postgres`/`initdb` on
-/// Windows (see `winspawn.rs` for why that pair needs a different spawn path
+/// The `postgres` server process, however this platform had to launch it:
+/// a normally-spawned child on macOS/Linux, or the restricted-token process
+/// Windows requires (see `winspawn.rs` for why that needs its own spawn path
 /// entirely). Only the handful of operations `PgServer` actually needs.
+///
+/// Exactly one variant exists per target — the other spawn path is not merely
+/// unused there, it does not compile — so both are gated rather than left as a
+/// variant that is never constructed.
 enum ManagedChild {
+    #[cfg(not(windows))]
     Std(std::process::Child),
     #[cfg(windows)]
     Restricted(crate::db::winspawn::RestrictedProcess),
@@ -20,6 +25,7 @@ impl ManagedChild {
     /// way regardless of which variant produced it.
     fn try_wait(&mut self) -> Result<Option<String>, DbError> {
         match self {
+            #[cfg(not(windows))]
             ManagedChild::Std(c) => Ok(c
                 .try_wait()
                 .map_err(DbError::Spawn)?
@@ -35,6 +41,7 @@ impl ManagedChild {
     /// Used only once `pg_ctl stop` has already been given its chance.
     fn kill_after(&mut self, timeout: Duration) {
         match self {
+            #[cfg(not(windows))]
             ManagedChild::Std(c) => {
                 let deadline = Instant::now() + timeout;
                 loop {
