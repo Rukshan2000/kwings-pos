@@ -4,6 +4,7 @@ import { api, DiscountIn, Product, ProductDetail } from "../api";
 import Receipt from "../components/Receipt";
 import DiscountControl from "../components/DiscountControl";
 import PaymentDialog, { Payment } from "../components/PaymentDialog";
+import UnitDialog from "../components/UnitDialog";
 import { SellableUnit, TierKind, pricedByTier, sellableUnits, unitPrice } from "../pricing";
 import { printBill } from "../printer";
 import { SHOP } from "../shop";
@@ -61,6 +62,7 @@ export default function Pos() {
   // Retail or wholesale for the whole bill: a customer is one or the other, and
   // setting it per line would be a tap on every item.
   const [tierKind, setTierKind] = useState<TierKind>("retail");
+  const [unitFor, setUnitFor] = useState<string | null>(null);
   const [payments, setPayments] = useState<Payment[]>([{ method: "cash", amount: "" }]);
   const [heldSaleId, setHeldSaleId] = useState<number | null>(null);
   const [showHeld, setShowHeld] = useState(false);
@@ -611,22 +613,17 @@ export default function Pos() {
                 </div>
 
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 pl-4">
-                  {/* Only worth showing when the product actually defines
-                      alternates — most do not. */}
+                  {/* Only worth offering when the product actually defines
+                      alternates — most do not. Opens a dialog rather than
+                      dropping a select into a narrow card. */}
                   {l.units.length > 1 && (
-                    <select
-                      className="rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-[11px] text-slate-700"
-                      value={l.unitId}
-                      onChange={(e) => setLineUnit(l.id, Number(e.target.value))}
-                      aria-label={`Unit for ${l.name}`}
+                    <button
+                      type="button"
+                      className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] text-slate-600 hover:bg-slate-50"
+                      onClick={() => setUnitFor(l.id)}
                     >
-                      {l.units.map((u) => (
-                        <option key={u.unitId} value={u.unitId}>
-                          {u.code}
-                          {u.factor !== 1 ? ` (${u.factor})` : ""}
-                        </option>
-                      ))}
-                    </select>
+                      Unit: {l.units.find((u) => u.unitId === l.unitId)?.code} ▾
+                    </button>
                   )}
                 </div>
 
@@ -745,6 +742,22 @@ export default function Pos() {
       </div>
 
       </div>
+
+      {(() => {
+        const line = cart.find((l) => l.id === unitFor);
+        if (!line) return null;
+        return (
+          <UnitDialog
+            open
+            productName={line.name}
+            units={line.units}
+            selected={line.unitId}
+            priceFor={(u) => unitPrice(line.detail, u, line.qty, tierKind)}
+            onPick={(unitId) => setLineUnit(line.id, unitId)}
+            onClose={() => setUnitFor(null)}
+          />
+        );
+      })()}
 
       <PaymentDialog
         open={showPayment}
