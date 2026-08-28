@@ -6,6 +6,7 @@ import { SHOP } from "../shop";
 const LINKS = [
   { to: "/", label: "POS", end: true },
   { to: "/products", label: "Products" },
+  { to: "/master-entries", label: "Master Entries" },
   { to: "/inventory", label: "Inventory" },
   { to: "/purchasing", label: "Purchasing" },
   { to: "/settings", label: "Settings" },

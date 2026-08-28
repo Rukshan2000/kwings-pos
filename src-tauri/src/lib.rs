@@ -26,6 +26,7 @@ pub fn run() {
             catalogue::list_brands,
             catalogue::create_brand,
             catalogue::list_units,
+            catalogue::create_unit,
             catalogue::list_products,
             catalogue::get_product,
             catalogue::create_product,

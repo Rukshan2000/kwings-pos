@@ -177,6 +177,7 @@ export const api = {
   createBrand: (name: string) => invoke<Brand>("create_brand", { name }),
 
   units: () => invoke<Unit[]>("list_units"),
+  createUnit: (code: string, name: string) => invoke<Unit>("create_unit", { code, name }),
 
   products: (search?: string) => invoke<Product[]>("list_products", { search }),
   product: (id: number) => invoke<ProductDetail>("get_product", { id }),

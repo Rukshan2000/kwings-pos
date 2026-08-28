@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { api, Product } from "../api";
 
 const emptyForm = {
@@ -262,16 +263,13 @@ export default function Products() {
             </div>
           </form>
 
-          <div className="mt-5 space-y-2 border-t border-slate-100 pt-4">
-            <QuickAdd
-              label="New category"
-              onAdd={(name) => api.createCategory(name).then(() => qc.invalidateQueries({ queryKey: ["categories"] }))}
-            />
-            <QuickAdd
-              label="New brand"
-              onAdd={(name) => api.createBrand(name).then(() => qc.invalidateQueries({ queryKey: ["brands"] }))}
-            />
-          </div>
+          <p className="mt-5 border-t border-slate-100 pt-4 text-xs text-slate-400">
+            Categories, brands and units are managed under{" "}
+            <Link className="text-brand-600 hover:underline" to="/master-entries">
+              Master Entries
+            </Link>
+            .
+          </p>
         </div>
 
         {detail.data && (
@@ -287,36 +285,6 @@ export default function Products() {
   );
 }
 
-function QuickAdd({ label, onAdd }: { label: string; onAdd: (name: string) => Promise<unknown> }) {
-  const [value, setValue] = useState("");
-  const [busy, setBusy] = useState(false);
-  return (
-    <form
-      className="flex gap-2"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        if (!value.trim()) return;
-        setBusy(true);
-        try {
-          await onAdd(value.trim());
-          setValue("");
-        } finally {
-          setBusy(false);
-        }
-      }}
-    >
-      <input
-        className="field !py-1.5 text-xs"
-        placeholder={label}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-      />
-      <button type="submit" className="btn-secondary !py-1.5 !px-3 text-xs" disabled={busy}>
-        Add
-      </button>
-    </form>
-  );
-}
 
 function ProductExtras({
   detail,

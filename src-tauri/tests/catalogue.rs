@@ -75,3 +75,46 @@ async fn product_lifecycle_and_unit_conversion_end_to_end() {
     server.stop().unwrap();
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// A shop-created unit must be a first-class one: usable as a product's base
+/// unit, and as the far side of a conversion. Nothing may treat the ten units
+/// the migration seeds as the complete set.
+#[tokio::test]
+async fn a_shop_created_unit_works_as_a_base_unit() {
+    let root = temp_root("custom-unit");
+    let (mut server, pool) = migrated_pool(&root).await;
+
+    let seeded: i64 = sqlx::query_scalar("SELECT count(*) FROM unit").fetch_one(&pool).await.unwrap();
+
+    // The same statement `catalogue::create_unit` runs.
+    let acre: i64 = sqlx::query_scalar(
+        "INSERT INTO unit (code, name) VALUES ($1, $2) RETURNING id"
+    ).bind("ac").bind("Acre").fetch_one(&pool).await.unwrap();
+
+    let after: i64 = sqlx::query_scalar("SELECT count(*) FROM unit").fetch_one(&pool).await.unwrap();
+    assert_eq!(after, seeded + 1, "the seeded units are a starting point, not a fixed list");
+
+    let product_id: i64 = sqlx::query_scalar(
+        "INSERT INTO product (name, base_unit_id, selling_price) VALUES ('Seed Paddy', $1, 5000.00) RETURNING id"
+    ).bind(acre).fetch_one(&pool).await.unwrap();
+
+    // It reads back through the same join `list_products` uses.
+    let code: String = sqlx::query_scalar(
+        "SELECT u.code FROM product p JOIN unit u ON u.id = p.base_unit_id WHERE p.id = $1"
+    ).bind(product_id).fetch_one(&pool).await.unwrap();
+    assert_eq!(code, "ac");
+
+    // The unique constraint that `create_unit` turns into a readable conflict.
+    let again = sqlx::query("INSERT INTO unit (code, name) VALUES ('ac', 'Acres')")
+        .execute(&pool).await;
+    let err = again.expect_err("a duplicate code must not be silently accepted");
+    let db_err = match &err {
+        sqlx::Error::Database(d) => d,
+        other => panic!("expected a database error, got {other:?}"),
+    };
+    assert_eq!(db_err.code().as_deref(), Some("23505"), "the code create_unit maps to a conflict");
+
+    pool.close().await;
+    server.stop().unwrap();
+    let _ = std::fs::remove_dir_all(&root);
+}

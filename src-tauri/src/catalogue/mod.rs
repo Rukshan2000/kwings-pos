@@ -146,6 +146,31 @@ async fn fetch_price_tiers(pool: &PgPool, product_id: i64) -> Result<Vec<PriceTi
     .await?)
 }
 
+/// Master data is typed by hand, so the same name arriving twice is an ordinary
+/// mistake and deserves a sentence the cashier can act on — not the raw
+/// Postgres unique-violation text.
+fn duplicate(e: sqlx::Error, what: &str, value: &str) -> DbError {
+    let is_duplicate = matches!(
+        &e,
+        sqlx::Error::Database(db) if db.code().as_deref() == Some("23505")
+    );
+    if is_duplicate {
+        DbError::Conflict(format!("a {what} called '{value}' already exists"))
+    } else {
+        DbError::from(e)
+    }
+}
+
+/// Trimmed, and rejected if that leaves nothing — a row named " " is invisible
+/// in every dropdown that offers it.
+fn require_name(value: &str, what: &str) -> Result<String, DbError> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err(DbError::Conflict(format!("a {what} needs a name")));
+    }
+    Ok(trimmed.to_string())
+}
+
 #[tauri::command]
 pub async fn list_categories(state: tauri::State<'_, AppDb>) -> Result<Vec<Category>, DbError> {
     let guard = state.0.read().await;
@@ -164,12 +189,12 @@ pub async fn create_category(
 ) -> Result<Category, DbError> {
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
-    Ok(
-        sqlx::query_as("INSERT INTO category (name) VALUES ($1) RETURNING id, name")
-            .bind(name.trim())
-            .fetch_one(&db.pool)
-            .await?,
-    )
+    let name = require_name(&name, "category")?;
+    sqlx::query_as("INSERT INTO category (name) VALUES ($1) RETURNING id, name")
+        .bind(&name)
+        .fetch_one(&db.pool)
+        .await
+        .map_err(|e| duplicate(e, "category", &name))
 }
 
 #[tauri::command]
@@ -190,12 +215,12 @@ pub async fn create_brand(
 ) -> Result<Brand, DbError> {
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
-    Ok(
-        sqlx::query_as("INSERT INTO brand (name) VALUES ($1) RETURNING id, name")
-            .bind(name.trim())
-            .fetch_one(&db.pool)
-            .await?,
-    )
+    let name = require_name(&name, "brand")?;
+    sqlx::query_as("INSERT INTO brand (name) VALUES ($1) RETURNING id, name")
+        .bind(&name)
+        .fetch_one(&db.pool)
+        .await
+        .map_err(|e| duplicate(e, "brand", &name))
 }
 
 #[tauri::command]
@@ -207,6 +232,33 @@ pub async fn list_units(state: tauri::State<'_, AppDb>) -> Result<Vec<Unit>, DbE
             .fetch_all(&db.pool)
             .await?,
     )
+}
+
+/// Units are shop data, not ours.
+///
+/// The migration seeds the ten a Sri Lankan agro shop is likely to start with,
+/// but nothing in the app may assume that list is complete — a shop selling by
+/// the acre, the roll or the bundle has to be able to say so. Products already
+/// resolve their base unit through `unit.id`, so a unit created here is usable
+/// as a base unit immediately.
+#[tauri::command]
+pub async fn create_unit(
+    state: tauri::State<'_, AppDb>,
+    code: String,
+    name: String,
+) -> Result<Unit, DbError> {
+    let guard = state.0.read().await;
+    let db = guard.as_ref().ok_or(DbError::NotReady)?;
+
+    let code = require_name(&code, "unit code")?;
+    let name = require_name(&name, "unit")?;
+
+    sqlx::query_as("INSERT INTO unit (code, name) VALUES ($1, $2) RETURNING id, code, name")
+        .bind(&code)
+        .bind(&name)
+        .fetch_one(&db.pool)
+        .await
+        .map_err(|e| duplicate(e, "unit with code", &code))
 }
 
 #[tauri::command]
