@@ -32,6 +32,33 @@
            placeholder:text-slate-400 outline-none transition-shadow duration-150
            focus:ring-2 focus:ring-brand-200 focus:border-brand-400;
   }
+  .field:hover {
+    @apply border-slate-300;
+  }
+  .field:disabled {
+    @apply cursor-not-allowed bg-slate-50 text-slate-400;
+  }
+  /* Native selects render their own arrow at their own size, in a system font
+     and a system colour, so a row of them beside .field inputs never quite
+     lines up. This draws the arrow instead: same border, height and focus ring
+     as an input, with room on the right for the chevron. */
+  .select {
+    @apply field cursor-pointer appearance-none bg-no-repeat pr-10;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2394a3b8' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8.5l4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1.05rem;
+  }
+  .select:hover {
+    @apply border-slate-300;
+  }
+  .select:disabled {
+    @apply cursor-not-allowed bg-slate-50 text-slate-400;
+  }
+  /* Only ever true for a `required` select still on its empty placeholder
+     option, which is exactly when the text should read as a prompt. */
+  .select:invalid {
+    @apply text-slate-400;
+  }
   .label {
     @apply text-xs font-medium text-slate-500;
   }

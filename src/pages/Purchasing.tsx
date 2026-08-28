@@ -147,7 +147,7 @@ export default function Purchasing() {
               submit.mutate();
             }}
           >
-            <select className="field" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} required>
+            <select className="select" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} required>
               <option value="">Supplier…</option>
               {suppliers.data?.map((s) => (
                 <option key={s.id} value={s.id}>{s.name} (owed {lkr(Number(s.outstanding))})</option>
@@ -177,12 +177,12 @@ export default function Purchasing() {
                 return <li key={i}>{p?.name ?? l.product_id}: {l.quantity} {u?.code} @ {lkr(Number(l.unit_cost))}</li>;
               })}
             </ul>
-            <select className="field" value={productId} onChange={(e) => setProductId(e.target.value)}>
+            <select className="select" value={productId} onChange={(e) => setProductId(e.target.value)}>
               <option value="">Product…</option>
               {products.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             <div className="grid grid-cols-2 gap-3">
-              <select className="field" value={unitId} onChange={(e) => setUnitId(e.target.value)}>
+              <select className="select" value={unitId} onChange={(e) => setUnitId(e.target.value)}>
                 <option value="">Unit…</option>
                 {units.data?.map((u) => <option key={u.id} value={u.id}>{u.code}</option>)}
               </select>

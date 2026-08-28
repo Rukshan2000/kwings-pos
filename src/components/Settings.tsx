@@ -62,7 +62,7 @@ export default function Settings({
 
       <div>
         <label className="label mb-1.5 block">Receipt printer</label>
-        <select className="field" value={printer} onChange={(e) => setPrinter(e.target.value)}>
+        <select className="select" value={printer} onChange={(e) => setPrinter(e.target.value)}>
           <option value="">{sysDefault ? `Windows default (${sysDefault})` : "Windows default"}</option>
           {names.map((n) => (
             <option key={n} value={n}>{n}</option>

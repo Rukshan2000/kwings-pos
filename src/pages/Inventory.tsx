@@ -115,7 +115,7 @@ export default function Inventory() {
                 apply.mutate();
               }}
             >
-              <select className="field" value={mode} onChange={(e) => setMode(e.target.value as "opening" | "adjustment")}>
+              <select className="select" value={mode} onChange={(e) => setMode(e.target.value as "opening" | "adjustment")}>
                 <option value="adjustment">Stock adjustment (in/out)</option>
                 <option value="opening">Opening stock (once only)</option>
               </select>

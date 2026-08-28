@@ -196,7 +196,7 @@ export default function Products() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <select
-                className="field"
+                className="select"
                 value={form.category_id ?? ""}
                 onChange={(e) =>
                   setForm({ ...form, category_id: e.target.value ? Number(e.target.value) : null })
@@ -208,7 +208,7 @@ export default function Products() {
                 ))}
               </select>
               <select
-                className="field"
+                className="select"
                 value={form.brand_id ?? ""}
                 onChange={(e) => setForm({ ...form, brand_id: e.target.value ? Number(e.target.value) : null })}
               >
@@ -219,7 +219,7 @@ export default function Products() {
               </select>
             </div>
             <select
-              className="field"
+              className="select"
               required
               value={form.base_unit_id || ""}
               onChange={(e) => setForm({ ...form, base_unit_id: Number(e.target.value) })}
@@ -355,7 +355,7 @@ function ProductExtras({
           onChange();
         }}
       >
-        <select className="field" value={unitId} onChange={(e) => setUnitId(e.target.value)}>
+        <select className="select" value={unitId} onChange={(e) => setUnitId(e.target.value)}>
           <option value="">Unit…</option>
           {units.map((u) => (
             <option key={u.id} value={u.id}>{u.code}</option>
@@ -396,11 +396,11 @@ function ProductExtras({
           onChange();
         }}
       >
-        <select className="field" value={tierKind} onChange={(e) => setTierKind(e.target.value as "retail" | "wholesale")}>
+        <select className="select" value={tierKind} onChange={(e) => setTierKind(e.target.value as "retail" | "wholesale")}>
           <option value="retail">Retail</option>
           <option value="wholesale">Wholesale</option>
         </select>
-        <select className="field" value={tierUnitId} onChange={(e) => setTierUnitId(e.target.value)}>
+        <select className="select" value={tierUnitId} onChange={(e) => setTierUnitId(e.target.value)}>
           <option value="">Unit…</option>
           {units.map((u) => (
             <option key={u.id} value={u.id}>{u.code}</option>
