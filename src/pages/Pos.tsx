@@ -4,7 +4,7 @@ import { api, DiscountIn, Product, ProductDetail } from "../api";
 import Receipt from "../components/Receipt";
 import DiscountControl from "../components/DiscountControl";
 import PaymentDialog, { Payment } from "../components/PaymentDialog";
-import UnitDialog from "../components/UnitDialog";
+import LineDialog from "../components/LineDialog";
 import { SellableUnit, TierKind, pricedByTier, sellableUnits, unitPrice } from "../pricing";
 import { printBill } from "../printer";
 import { SHOP } from "../shop";
@@ -57,12 +57,12 @@ export default function Pos() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [billDiscount, setBillDiscount] = useState<Discount | undefined>();
-  const [editingDiscount, setEditingDiscount] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState<number | null>(null);
   // Retail or wholesale for the whole bill: a customer is one or the other, and
   // setting it per line would be a tap on every item.
   const [tierKind, setTierKind] = useState<TierKind>("retail");
-  const [unitFor, setUnitFor] = useState<string | null>(null);
+  // Which cart line's options dialog is open, if any.
+  const [lineOptions, setLineOptions] = useState<string | null>(null);
   const [payments, setPayments] = useState<Payment[]>([{ method: "cash", amount: "" }]);
   const [heldSaleId, setHeldSaleId] = useState<number | null>(null);
   const [showHeld, setShowHeld] = useState(false);
@@ -219,7 +219,6 @@ export default function Pos() {
   const resetCart = () => {
     setCart([]);
     setBillDiscount(undefined);
-    setEditingDiscount(null);
     setPayments([{ method: "cash", amount: "" }]);
     setHeldSaleId(null);
     setShowPayment(false);
@@ -612,40 +611,29 @@ export default function Pos() {
                   </button>
                 </div>
 
-                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 pl-4">
-                  {/* Only worth offering when the product actually defines
-                      alternates — most do not. Opens a dialog rather than
-                      dropping a select into a narrow card. */}
+                {/* Both open the same dialog. Neither control belongs in a
+                    380px line beside a name, a stepper and a total. */}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-4">
                   {l.units.length > 1 && (
                     <button
                       type="button"
                       className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] text-slate-600 hover:bg-slate-50"
-                      onClick={() => setUnitFor(l.id)}
+                      onClick={() => setLineOptions(l.id)}
                     >
-                      Unit: {l.units.find((u) => u.unitId === l.unitId)?.code} ▾
+                      {l.units.find((u) => u.unitId === l.unitId)?.code} ▾
                     </button>
                   )}
-                </div>
-
-                <div className="mt-1.5 pl-4">
-                  {editingDiscount === l.id || l.discount ? (
-                    <DiscountControl
-                      value={l.discount}
-                      base={l.qty * l.price}
-                      autoFocus={editingDiscount === l.id}
-                      label="Line discount"
-                      onChange={(d) => setLineDiscount(l.id, d)}
-                      onDone={() => setEditingDiscount(null)}
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      className="text-[11px] text-slate-500 underline-offset-2 hover:text-brand-700 hover:underline"
-                      onClick={() => setEditingDiscount(l.id)}
-                    >
-                      + Discount this item
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className={`rounded-md border px-1.5 py-0.5 text-[11px] ${
+                      off > 0
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                    }`}
+                    onClick={() => setLineOptions(l.id)}
+                  >
+                    {off > 0 ? `−${money(off)}` : "+ Discount"}
+                  </button>
                 </div>
               </div>
             );
@@ -744,17 +732,20 @@ export default function Pos() {
       </div>
 
       {(() => {
-        const line = cart.find((l) => l.id === unitFor);
+        const line = cart.find((l) => l.id === lineOptions);
         if (!line) return null;
         return (
-          <UnitDialog
+          <LineDialog
             open
             productName={line.name}
             units={line.units}
             selected={line.unitId}
             priceFor={(u) => unitPrice(line.detail, u, line.qty, tierKind)}
             onPick={(unitId) => setLineUnit(line.id, unitId)}
-            onClose={() => setUnitFor(null)}
+            discount={line.discount}
+            discountBase={line.qty * line.price}
+            onDiscount={(d) => setLineDiscount(line.id, d)}
+            onClose={() => setLineOptions(null)}
           />
         );
       })()}
