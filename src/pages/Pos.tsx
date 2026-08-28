@@ -422,52 +422,55 @@ export default function Pos() {
         </div>
       </div>
 
-      <div className="sticky top-20 flex flex-col rounded-2xl bg-slate-900 text-white shadow-card">
+      {/* Full height so the order stays one column from header to buttons: the
+          card is pinned below the nav and the item list is the only part that
+          scrolls, which keeps the totals and Complete Sale always in view. */}
+      <div className="card flex flex-col overflow-hidden xl:sticky xl:top-20 xl:h-[calc(100vh-7rem)]">
         <div className="flex items-center justify-between px-5 pt-5">
-          <h2 className="text-sm font-semibold text-slate-200">Order ({cart.length})</h2>
+          <h2 className="text-sm font-semibold text-slate-700">Order ({cart.length})</h2>
           {cart.length > 0 && (
-            <button type="button" className="text-xs text-slate-400 hover:text-white" onClick={resetCart}>
+            <button type="button" className="text-xs text-slate-400 hover:text-slate-700" onClick={resetCart}>
               Clear
             </button>
           )}
         </div>
 
-        <div className="max-h-[42vh] overflow-y-auto px-5 py-3 space-y-2">
-          {cart.length === 0 && <p className="py-8 text-center text-sm text-slate-500">No items yet.</p>}
+        <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
+          {cart.length === 0 && <p className="py-8 text-center text-sm text-slate-400">No items yet.</p>}
           {cart.map((l) => {
             const off = lineDiscount(l);
             return (
-              <div key={l.id} className="rounded-xl bg-slate-800/70 p-3">
+              <div key={l.id} className="rounded-xl border border-slate-200/80 bg-slate-50 p-3">
                 <div className="flex items-center gap-3">
                   <div className="h-9 w-1 shrink-0 rounded-full bg-brand-500" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-slate-100">{l.name}</p>
-                    <p className="text-xs text-slate-400">{lkr(l.price)} each</p>
+                    <p className="truncate text-sm font-medium text-slate-800">{l.name}</p>
+                    <p className="text-xs text-slate-500">{lkr(l.price)} each</p>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => setQty(l.id, l.qty - 1)}
-                      className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-700 text-slate-200 hover:bg-slate-600"
+                      className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
                     >
                       −
                     </button>
-                    <span className="w-6 text-center text-sm">{l.qty}</span>
+                    <span className="w-6 text-center text-sm text-slate-800">{l.qty}</span>
                     <button
                       type="button"
                       onClick={() => setQty(l.id, l.qty + 1)}
-                      className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-700 text-slate-200 hover:bg-slate-600"
+                      className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
                     >
                       +
                     </button>
                   </div>
                   <div className="w-20 text-right">
                     {off > 0 && (
-                      <div className="text-[11px] text-slate-500 line-through">{money(l.qty * l.price)}</div>
+                      <div className="text-[11px] text-slate-400 line-through">{money(l.qty * l.price)}</div>
                     )}
-                    <span className="text-sm font-semibold">{money(lineTotal(l))}</span>
+                    <span className="text-sm font-semibold text-slate-900">{money(lineTotal(l))}</span>
                   </div>
-                  <button type="button" onClick={() => removeLine(l.id)} className="text-slate-500 hover:text-amber-400">
+                  <button type="button" onClick={() => removeLine(l.id)} className="text-slate-400 hover:text-amber-600">
                     ×
                   </button>
                 </div>
@@ -485,7 +488,7 @@ export default function Pos() {
                   ) : (
                     <button
                       type="button"
-                      className="text-[11px] text-slate-400 underline-offset-2 hover:text-white hover:underline"
+                      className="text-[11px] text-slate-500 underline-offset-2 hover:text-brand-700 hover:underline"
                       onClick={() => setEditingDiscount(l.id)}
                     >
                       + Discount this item
@@ -497,14 +500,14 @@ export default function Pos() {
           })}
         </div>
 
-        <div className="space-y-1.5 border-t border-slate-800 px-5 py-4 text-sm">
-          <div className="flex justify-between text-slate-400">
+        <div className="space-y-1.5 border-t border-slate-200 px-5 py-4 text-sm">
+          <div className="flex justify-between text-slate-500">
             <span>Subtotal</span>
             <span>{lkr(subtotal)}</span>
           </div>
 
           {savings > 0 && (
-            <div className="flex justify-between text-emerald-400">
+            <div className="flex justify-between text-emerald-600">
               <span>Discount</span>
               <span>−{lkr(savings)}</span>
             </div>
@@ -521,7 +524,7 @@ export default function Pos() {
             ) : (
               <button
                 type="button"
-                className="text-xs text-slate-400 underline-offset-2 hover:text-white hover:underline disabled:opacity-40 disabled:no-underline"
+                className="text-xs text-slate-500 underline-offset-2 hover:text-brand-700 hover:underline disabled:opacity-40 disabled:no-underline"
                 disabled={!cart.length}
                 onClick={() => setBillDiscount({ kind: "percent", value: 0 })}
               >
@@ -531,22 +534,22 @@ export default function Pos() {
           </div>
 
           {showPayment && (
-            <div className="flex justify-between text-slate-400">
+            <div className="flex justify-between text-slate-500">
               <span>Paid</span>
               <span>
                 {lkr(paidTotal)}
-                {paidTotal < toPay && <span className="text-amber-400"> · credit {lkr(toPay - paidTotal)}</span>}
+                {paidTotal < toPay && <span className="text-amber-600"> · credit {lkr(toPay - paidTotal)}</span>}
               </span>
             </div>
           )}
         </div>
 
         {showPayment && (
-          <div className="space-y-2 border-t border-slate-800 px-5 py-4">
+          <div className="space-y-2 border-t border-slate-200 px-5 py-4">
             {payments.map((p, i) => (
               <div className="grid grid-cols-2 gap-2" key={i}>
                 <select
-                  className="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-2 text-sm text-slate-100"
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-800"
                   value={p.method}
                   onChange={(e) =>
                     setPayments((prev) => prev.map((x, j) => (j === i ? { ...x, method: e.target.value } : x)))
@@ -558,7 +561,7 @@ export default function Pos() {
                   <option value="credit">Credit</option>
                 </select>
                 <input
-                  className="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-800 placeholder:text-slate-400"
                   type="number" step="0.01" min="0"
                   placeholder="Amount"
                   value={p.amount}
@@ -570,7 +573,7 @@ export default function Pos() {
             ))}
             <button
               type="button"
-              className="text-xs text-slate-400 hover:text-white"
+              className="text-xs text-slate-500 hover:text-brand-700"
               onClick={() => setPayments((prev) => [...prev, { method: "cash", amount: "" }])}
             >
               + Split payment
@@ -578,13 +581,13 @@ export default function Pos() {
           </div>
         )}
 
-        <div className="flex items-center justify-between border-t border-slate-800 px-5 py-4">
-          <span className="text-sm font-medium text-slate-300">To pay</span>
-          <span className="text-xl font-semibold">{lkr(toPay)}</span>
+        <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-5 py-4">
+          <span className="text-sm font-medium text-slate-600">To pay</span>
+          <span className="text-xl font-semibold text-slate-900">{lkr(toPay)}</span>
         </div>
 
         {status && (
-          <p className={`px-5 pb-2 text-xs ${status.startsWith("Checkout failed") ? "text-amber-400" : "text-slate-400"}`}>
+          <p className={`px-5 pb-2 text-xs ${status.startsWith("Checkout failed") ? "text-amber-600" : "text-slate-500"}`}>
             {status}
           </p>
         )}
@@ -592,7 +595,7 @@ export default function Pos() {
         <div className="flex gap-2 px-5 pb-5">
           <button
             type="button"
-            className="rounded-xl bg-slate-800 px-3.5 py-3 text-sm font-medium text-slate-200 hover:bg-slate-700 disabled:opacity-40"
+            className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
             disabled={!cart.length || hold.isPending}
             onClick={() => hold.mutate()}
           >

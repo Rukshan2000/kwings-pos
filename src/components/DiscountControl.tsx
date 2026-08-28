@@ -53,14 +53,14 @@ export default function DiscountControl({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-1.5">
-        <div className="flex overflow-hidden rounded-lg border border-slate-700">
+        <div className="flex overflow-hidden rounded-lg border border-slate-200">
           {(["percent", "fixed"] as const).map((k) => (
             <button
               key={k}
               type="button"
               onClick={() => push(k, raw)}
               className={`px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                kind === k ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                kind === k ? "bg-brand-600 text-white" : "bg-white text-slate-600 hover:bg-slate-100"
               }`}
             >
               {k === "percent" ? "%" : SHOP.currency}
@@ -69,7 +69,7 @@ export default function DiscountControl({
         </div>
         <input
           ref={inputRef}
-          className="w-full rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-500"
+          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-800 placeholder:text-slate-400"
           type="number"
           step="0.01"
           min="0"
@@ -88,7 +88,7 @@ export default function DiscountControl({
         {value && (
           <button
             type="button"
-            className="px-1.5 text-xs text-slate-400 hover:text-amber-400"
+            className="px-1.5 text-xs text-slate-400 hover:text-amber-600"
             onClick={() => push(kind, "")}
             aria-label={`Remove ${label.toLowerCase()}`}
           >
@@ -97,7 +97,7 @@ export default function DiscountControl({
         )}
       </div>
       {value && (
-        <p className={`text-[11px] ${overCap ? "text-amber-400" : "text-slate-400"}`}>
+        <p className={`text-[11px] ${overCap ? "text-amber-600" : "text-slate-500"}`}>
           −{lkr(amount)}
           {overCap && ` · capped at ${kind === "percent" ? "100%" : lkr(base)}`}
         </p>
