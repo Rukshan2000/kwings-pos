@@ -379,7 +379,10 @@ export default function Pos() {
           {grouped.map(([cat, items]) => (
             <div key={cat}>
               <h2 className="mb-2.5 text-sm font-semibold text-slate-700">{cat}</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {/* Three across rather than four: these are the buttons the whole
+                  shift is spent hitting, so they get room for a readable name and
+                  a price that carries from arm's length. */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 2xl:grid-cols-4 gap-3.5">
                 {items.map((p) => {
                   const onHand = onHandByProduct.get(p.id);
                   const outOfStock = onHand !== undefined && onHand <= 0;
@@ -390,21 +393,43 @@ export default function Pos() {
                       type="button"
                       disabled={outOfStock}
                       onClick={() => addProduct(p)}
-                      className={`relative overflow-hidden rounded-xl border-l-4 bg-white p-3.5 text-left shadow-sm transition-transform
+                      className={`relative flex min-h-[7.5rem] flex-col overflow-hidden rounded-xl border border-l-4 bg-white p-4 text-left transition-all duration-150
                         ${categoryColor(cat)}
-                        ${outOfStock ? "opacity-50 cursor-not-allowed" : "hover:-translate-y-0.5 hover:shadow-card"}`}
+                        ${
+                          outOfStock
+                            ? "border-slate-200 opacity-60 cursor-not-allowed"
+                            : inCart
+                              ? "border-brand-300 shadow-card ring-1 ring-brand-200"
+                              : "border-slate-200 shadow-sm hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-card"
+                        }`}
                     >
                       {inCart && (
-                        <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-[11px] font-semibold text-white">
+                        <span className="absolute right-2.5 top-2.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-600 px-1.5 text-xs font-semibold text-white shadow-sm">
                           {inCart.qty}
                         </span>
                       )}
-                      <p className="text-sm font-medium text-slate-800 leading-snug line-clamp-2">{p.name}</p>
-                      <div className="mt-1.5 flex items-baseline justify-between">
-                        <span className="text-sm font-semibold text-slate-900">{lkr(Number(p.selling_price))}</span>
-                        <span className="text-xs text-slate-400">
-                          {outOfStock ? "Out of stock" : onHand !== undefined ? `${onHand} ${p.base_unit_code}` : ""}
-                        </span>
+
+                      <p className="pr-7 text-[0.9375rem] font-semibold leading-snug text-slate-800 line-clamp-2">
+                        {p.name}
+                      </p>
+
+                      {/* Pushed to the bottom so the price sits on the same line
+                          across the row, whether a name wraps to one line or two. */}
+                      <div className="mt-auto pt-3">
+                        <div className="text-lg font-bold leading-none text-slate-900">
+                          {lkr(Number(p.selling_price))}
+                        </div>
+                        {onHand !== undefined && (
+                          <span
+                            className={`mt-2 inline-block rounded-md px-1.5 py-0.5 text-[11px] font-medium ${
+                              outOfStock
+                                ? "bg-amber-50 text-amber-700"
+                                : "bg-slate-100 text-slate-500"
+                            }`}
+                          >
+                            {outOfStock ? "Out of stock" : `${onHand} ${p.base_unit_code}`}
+                          </span>
+                        )}
                       </div>
                     </button>
                   );
