@@ -379,10 +379,11 @@ export default function Pos() {
           {grouped.map(([cat, items]) => (
             <div key={cat}>
               <h2 className="mb-2.5 text-sm font-semibold text-slate-700">{cat}</h2>
-              {/* Three across rather than four: these are the buttons the whole
-                  shift is spent hitting, so they get room for a readable name and
-                  a price that carries from arm's length. */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 2xl:grid-cols-4 gap-3.5">
+              {/* Dense on purpose: fitting more products on screen saves more
+                  taps than a larger button does. The card earns its visibility
+                  from contrast — border, ring when in the cart, amber when out
+                  of stock — rather than from size. */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-2.5">
                 {items.map((p) => {
                   const onHand = onHandByProduct.get(p.id);
                   const outOfStock = onHand !== undefined && onHand <= 0;
@@ -393,7 +394,7 @@ export default function Pos() {
                       type="button"
                       disabled={outOfStock}
                       onClick={() => addProduct(p)}
-                      className={`relative flex min-h-[7.5rem] flex-col overflow-hidden rounded-xl border border-l-4 bg-white p-4 text-left transition-all duration-150
+                      className={`relative flex flex-col overflow-hidden rounded-lg border border-l-4 bg-white p-2.5 text-left transition-all duration-150
                         ${categoryColor(cat)}
                         ${
                           outOfStock
@@ -404,30 +405,28 @@ export default function Pos() {
                         }`}
                     >
                       {inCart && (
-                        <span className="absolute right-2.5 top-2.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-600 px-1.5 text-xs font-semibold text-white shadow-sm">
+                        <span className="absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1 text-[11px] font-semibold text-white">
                           {inCart.qty}
                         </span>
                       )}
 
-                      <p className="pr-7 text-[0.9375rem] font-semibold leading-snug text-slate-800 line-clamp-2">
+                      {/* Two lines of name, then price and stock share the last
+                          line — the whole card is three lines tall. */}
+                      <p className="min-h-[2.2rem] pr-5 text-[13px] font-medium leading-snug text-slate-800 line-clamp-2">
                         {p.name}
                       </p>
 
-                      {/* Pushed to the bottom so the price sits on the same line
-                          across the row, whether a name wraps to one line or two. */}
-                      <div className="mt-auto pt-3">
-                        <div className="text-lg font-bold leading-none text-slate-900">
+                      <div className="mt-1.5 flex items-baseline justify-between gap-1">
+                        <span className="text-[15px] font-bold leading-none text-slate-900">
                           {lkr(Number(p.selling_price))}
-                        </div>
+                        </span>
                         {onHand !== undefined && (
                           <span
-                            className={`mt-2 inline-block rounded-md px-1.5 py-0.5 text-[11px] font-medium ${
-                              outOfStock
-                                ? "bg-amber-50 text-amber-700"
-                                : "bg-slate-100 text-slate-500"
+                            className={`shrink-0 rounded px-1 text-[10px] font-medium leading-4 ${
+                              outOfStock ? "bg-amber-50 text-amber-700" : "text-slate-400"
                             }`}
                           >
-                            {outOfStock ? "Out of stock" : `${onHand} ${p.base_unit_code}`}
+                            {outOfStock ? "None" : `${onHand} ${p.base_unit_code}`}
                           </span>
                         )}
                       </div>
