@@ -110,12 +110,50 @@ jobs:
           $installer = Get-ChildItem out\*-setup.exe | Select-Object -First 1
           if (-not $installer) { throw "no NSIS installer in the artifact" }
           Write-Host "installing $($installer.Name)"
-          Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait
-          $exe = "C:\Program Files\Green Plus POS\Green Plus POS.exe"
-          if (-not (Test-Path $exe)) { throw "app was not installed to $exe" }
-          $pg = "C:\Program Files\Green Plus POS\resources\pgsql\bin\postgres.exe"
-          if (-not (Test-Path $pg)) { throw "bundled PostgreSQL was not installed" }
-          Write-Host "installed ok"
+
+          $proc = Start-Process -FilePath $installer.FullName -ArgumentList "/S" -PassThru -Wait
+          Write-Host "installer exited with $($proc.ExitCode)"
+
+          # Where the app landed is the installer's business, not ours to assume:
+          # NSIS records it under the uninstall key, and reading it back is also a
+          # check that the install actually completed. A silent NSIS install can
+          # also return before its work is flushed, so poll rather than test once.
+          $key = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Green Plus POS"
+          $installDir = $null
+          $deadline = (Get-Date).AddSeconds(120)
+          while (-not $installDir -and (Get-Date) -lt $deadline) {
+            $installDir = (Get-ItemProperty -Path $key -Name InstallLocation -EA SilentlyContinue).InstallLocation
+            if ($installDir) { $installDir = $installDir.Trim('"') }
+            if (-not $installDir) { Start-Sleep -Seconds 2 }
+          }
+
+          if (-not $installDir) {
+            Write-Host "--- installer exit code: $($proc.ExitCode)"
+            Write-Host "--- HKLM uninstall entries:"
+            Get-ChildItem "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall" -EA SilentlyContinue |
+              ForEach-Object { $_.PSChildName } | Write-Host
+            Write-Host "--- Program Files:"
+            Get-ChildItem "C:\Program Files" -EA SilentlyContinue | ForEach-Object { $_.Name } | Write-Host
+            throw "the installer registered no InstallLocation - it did not complete"
+          }
+          Write-Host "installed to $installDir"
+
+          # The main binary is named after productName, so let the directory say
+          # what it is rather than hardcoding the spelling in four places.
+          $exe = Get-ChildItem (Join-Path $installDir "*.exe") -EA SilentlyContinue |
+            Where-Object { $_.Name -ne "uninstall.exe" } | Select-Object -First 1
+          if (-not $exe) {
+            Get-ChildItem $installDir -Recurse -Depth 1 -EA SilentlyContinue |
+              ForEach-Object { $_.FullName } | Write-Host
+            throw "no application executable under $installDir"
+          }
+
+          $pg = Join-Path $installDir "resources\pgsql\bin\postgres.exe"
+          if (-not (Test-Path $pg)) { throw "bundled PostgreSQL was not installed to $pg" }
+
+          Write-Host "installed ok: $($exe.FullName)"
+          "APP_EXE=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "INSTALL_DIR=$installDir" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Shared data directory is writable by Users
         shell: pwsh
@@ -129,8 +167,7 @@ jobs:
       - name: First launch initialises the cluster
         shell: pwsh
         run: |
-          $exe = "C:\Program Files\Green Plus POS\Green Plus POS.exe"
-          $app = Start-Process -FilePath $exe -PassThru
+          $app = Start-Process -FilePath $env:APP_EXE -PassThru
           $marker = "$env:ProgramData\GreenPlusPOS\pgdata\PG_VERSION"
 
           $deadline = (Get-Date).AddSeconds(180)
@@ -154,7 +191,7 @@ jobs:
           # Migrations must have been applied by now.
           $cfg = Get-Content "$env:ProgramData\GreenPlusPOS\config.json" | ConvertFrom-Json
           $env:PGPASSWORD = $cfg.password
-          $psql = "C:\Program Files\Green Plus POS\resources\pgsql\bin\psql.exe"
+          $psql = Join-Path $env:INSTALL_DIR "resources\pgsql\bin\psql.exe"
           $rows = & $psql -h 127.0.0.1 -p $cfg.port -U pos_admin -d pos -tAqc `
             "SELECT count(*) FROM _sqlx_migrations WHERE success"
           if ([int]$rows -lt 1) { throw "no migrations were applied" }
@@ -162,7 +199,7 @@ jobs:
 
           # pg_dump from the bundled binaries produces a real backup.
           $dump = "$env:TEMP\smoke.dump"
-          & "C:\Program Files\Green Plus POS\resources\pgsql\bin\pg_dump.exe" `
+          & (Join-Path $env:INSTALL_DIR "resources\pgsql\bin\pg_dump.exe") `
             -h 127.0.0.1 -p $cfg.port -U pos_admin -d pos --format=custom -f $dump
           if ((Get-Item $dump).Length -le 0) { throw "pg_dump produced an empty file" }
           Write-Host "backup ok: $((Get-Item $dump).Length) bytes"
