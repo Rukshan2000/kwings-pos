@@ -3,10 +3,12 @@ import { lkr } from "../types";
 
 export type Payment = { method: string; amount: string };
 
+// Short labels: these sit four-across in a dialog, and "Bank transfer" on two
+// lines makes every button in the row taller for no gain.
 const METHODS = [
   { value: "cash", label: "Cash" },
   { value: "card", label: "Card" },
-  { value: "bank_transfer", label: "Bank transfer" },
+  { value: "bank_transfer", label: "Bank" },
   { value: "credit", label: "Credit" },
 ];
 
@@ -100,40 +102,59 @@ export default function PaymentDialog({
           }}
         >
           {payments.map((p, i) => (
-            <div className="flex gap-2" key={i}>
-              <select
-                className="w-40 rounded-xl border border-slate-200 bg-white px-2.5 py-2.5 text-sm text-slate-800"
-                value={p.method}
-                onChange={(e) => set(i, { method: e.target.value })}
+            <div className="rounded-xl border border-slate-200 p-2.5" key={i}>
+              {/* Buttons rather than a select: on a touch screen a dropdown is
+                  two taps and a small target, and the method is chosen on every
+                  single sale. All four stay visible so the choice is one tap. */}
+              <div
+                className="grid grid-cols-4 gap-1.5"
+                role="radiogroup"
                 aria-label={`Payment ${i + 1} method`}
               >
-                {METHODS.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-              <input
-                ref={i === 0 ? firstAmount : undefined}
-                className="field"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="Amount"
-                aria-label={`Payment ${i + 1} amount`}
-                value={p.amount}
-                onChange={(e) => set(i, { amount: e.target.value })}
-              />
-              {payments.length > 1 && (
-                <button
-                  type="button"
-                  className="px-1.5 text-slate-400 hover:text-amber-600"
-                  onClick={() => onChange(payments.filter((_, j) => j !== i))}
-                  aria-label={`Remove payment ${i + 1}`}
-                >
-                  ×
-                </button>
-              )}
+                {METHODS.map((m) => {
+                  const active = p.method === m.value;
+                  return (
+                    <button
+                      key={m.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => set(i, { method: m.value })}
+                      className={`rounded-lg px-1 py-2.5 text-xs font-medium leading-tight transition-colors ${
+                        active
+                          ? "bg-brand-600 text-white shadow-sm"
+                          : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-2 flex gap-2">
+                <input
+                  ref={i === 0 ? firstAmount : undefined}
+                  className="field"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Amount"
+                  aria-label={`Payment ${i + 1} amount`}
+                  value={p.amount}
+                  onChange={(e) => set(i, { amount: e.target.value })}
+                />
+                {payments.length > 1 && (
+                  <button
+                    type="button"
+                    className="px-2 text-slate-400 hover:text-amber-600"
+                    onClick={() => onChange(payments.filter((_, j) => j !== i))}
+                    aria-label={`Remove payment ${i + 1}`}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
             </div>
           ))}
 
