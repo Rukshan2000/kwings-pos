@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
-import { api, DiscountIn, Product } from "../api";
+import { api, DiscountIn, Product, ProductDetail } from "../api";
 import Receipt from "../components/Receipt";
 import DiscountControl from "../components/DiscountControl";
 import PaymentDialog, { Payment } from "../components/PaymentDialog";
+import { SellableUnit, TierKind, pricedByTier, sellableUnits, unitPrice } from "../pricing";
 import { printBill } from "../printer";
 import { SHOP } from "../shop";
 import {
@@ -20,7 +21,14 @@ import {
   subtotal as grossSubtotal,
 } from "../types";
 
-type CartLine = Item & { productId: number; unitId: number };
+type CartLine = Item & {
+  productId: number;
+  unitId: number;
+  /** The product's units and tiers, kept on the line so re-pricing after a
+      quantity or unit change needs no round trip. */
+  detail: ProductDetail;
+  units: SellableUnit[];
+};
 
 /** The wire form of a discount: kind plus the raw typed value, never an amount. */
 const toDiscountIn = (d?: Discount): DiscountIn | null =>
@@ -50,6 +58,9 @@ export default function Pos() {
   const [billDiscount, setBillDiscount] = useState<Discount | undefined>();
   const [editingDiscount, setEditingDiscount] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState<number | null>(null);
+  // Retail or wholesale for the whole bill: a customer is one or the other, and
+  // setting it per line would be a tap on every item.
+  const [tierKind, setTierKind] = useState<TierKind>("retail");
   const [payments, setPayments] = useState<Payment[]>([{ method: "cash", amount: "" }]);
   const [heldSaleId, setHeldSaleId] = useState<number | null>(null);
   const [showHeld, setShowHeld] = useState(false);
@@ -115,29 +126,58 @@ export default function Pos() {
   const billOff = useMemo(() => billDiscountAmount(cart, billDiscount), [cart, billDiscount]);
   const toPay = useMemo(() => grandTotal(cart, billDiscount), [cart, billDiscount]);
 
-  const addProduct = (p: Product) => {
-    setCart((prev) => {
-      const existing = prev.find((l) => l.productId === p.id);
-      if (existing) {
-        return prev.map((l) => (l.productId === p.id ? { ...l, qty: l.qty + 1 } : l));
-      }
-      return [
-        ...prev,
-        {
-          id: uid(),
-          productId: p.id,
-          unitId: p.base_unit_id,
-          name: p.name,
-          qty: 1,
-          price: Number(p.selling_price),
-        },
-      ];
+  /// Re-prices a line from its own tiers. Called on every quantity or unit
+  /// change, because a quantity break that stops applying has to stop applying.
+  const repriced = (line: CartLine, qty: number, unit: SellableUnit, kind: TierKind): CartLine => ({
+    ...line,
+    qty,
+    unitId: unit.unitId,
+    price: unitPrice(line.detail, unit, qty, kind),
+  });
+
+  const addProduct = async (p: Product) => {
+    const existing = cart.find((l) => l.productId === p.id);
+    if (existing) {
+      const unit = existing.units.find((u) => u.unitId === existing.unitId) ?? existing.units[0];
+      setCart((prev) =>
+        prev.map((l) => (l.id === existing.id ? repriced(l, l.qty + 1, unit, tierKind) : l))
+      );
+      return;
+    }
+
+    // The grid's product rows carry no units or tiers, so the first add of a
+    // product fetches them. Cached by react-query, so a second add of the same
+    // product does not hit the database again.
+    const detail = await qc.fetchQuery({
+      queryKey: ["product", p.id],
+      queryFn: () => api.product(p.id),
     });
+    const units = sellableUnits(detail);
+
+    setCart((prev) => [
+      ...prev,
+      {
+        id: uid(),
+        productId: p.id,
+        unitId: units[0].unitId,
+        name: p.name,
+        qty: 1,
+        price: unitPrice(detail, units[0], 1, tierKind),
+        detail,
+        units,
+      },
+    ]);
   };
 
   // Barcode-scanner wedge: a scan arrives as rapid keystrokes ending in Enter.
   // Matched against the already-loaded product list rather than a fresh query,
   // since the grid keeps the full catalogue in memory anyway.
+  const add = (p: Product) => {
+    addProduct(p).catch((e) =>
+      setStatus(`Could not add ${p.name}: ${e instanceof Error ? e.message : String(e)}`)
+    );
+  };
+
   const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== "Enter" || !search.trim()) return;
     e.preventDefault();
@@ -145,17 +185,30 @@ export default function Pos() {
     const list = allProducts.data ?? [];
     const exact = list.find((p) => p.barcode === q);
     if (exact) {
-      addProduct(exact);
+      add(exact);
       setSearch("");
     } else if (visible.length === 1) {
-      addProduct(visible[0]);
+      add(visible[0]);
       setSearch("");
     }
   };
 
   const setQty = (id: string, qty: number) =>
     setCart((prev) =>
-      qty <= 0 ? prev.filter((l) => l.id !== id) : prev.map((l) => (l.id === id ? { ...l, qty } : l))
+      qty <= 0
+        ? prev.filter((l) => l.id !== id)
+        : prev.map((l) =>
+            l.id === id
+              ? repriced(l, qty, l.units.find((u) => u.unitId === l.unitId) ?? l.units[0], tierKind)
+              : l
+          )
+    );
+
+  const setLineUnit = (id: string, unitId: number) =>
+    setCart((prev) =>
+      prev.map((l) =>
+        l.id === id ? repriced(l, l.qty, l.units.find((u) => u.unitId === unitId) ?? l.units[0], tierKind) : l
+      )
     );
   const removeLine = (id: string) => setCart((prev) => prev.filter((l) => l.id !== id));
   const setLineDiscount = (id: string, discount?: Discount) =>
@@ -192,16 +245,34 @@ export default function Pos() {
   // button set `heldSaleId` against an empty cart, so nothing appeared on screen
   // and "Complete Sale" stayed disabled.
   const resume = useMutation({
-    mutationFn: (id: number) => api.heldSale(id),
-    onSuccess: (sale) => {
+    mutationFn: async (id: number) => {
+      const sale = await api.heldSale(id);
+      // A resumed line needs its product's units and tiers the same way a
+      // freshly added one does, or changing its quantity could not re-price it.
+      const lines = await Promise.all(
+        sale.lines.map(async (l) => ({
+          line: l,
+          detail: await qc.fetchQuery({
+            queryKey: ["product", l.product_id],
+            queryFn: () => api.product(l.product_id),
+          }),
+        }))
+      );
+      return { sale, lines };
+    },
+    onSuccess: ({ sale, lines }) => {
       setCart(
-        sale.lines.map((l) => ({
+        lines.map(({ line: l, detail }) => ({
           id: uid(),
           productId: l.product_id,
           unitId: l.unit_id,
           name: l.name,
           qty: Number(l.quantity),
+          // The held price, not a re-derived one: whatever it was sold at when
+          // the cart was parked is what the customer was quoted.
           price: Number(l.unit_price),
+          detail,
+          units: sellableUnits(detail),
           discount:
             l.discount_kind && l.discount_value !== null
               ? { kind: l.discount_kind, value: Number(l.discount_value) }
@@ -406,7 +477,7 @@ export default function Pos() {
                 key={p.id}
                 type="button"
                 disabled={outOfStock}
-                onClick={() => addProduct(p)}
+                onClick={() => add(p)}
                 className={`relative flex flex-col overflow-hidden rounded-lg border border-l-4 bg-white p-2 text-left transition-all duration-150
                   ${categoryColor(cat)}
                   ${
@@ -458,11 +529,37 @@ export default function Pos() {
       <div className="card flex flex-col overflow-hidden xl:sticky xl:top-20 xl:h-[calc(100vh-7rem)]">
         <div className="flex items-center justify-between px-5 pt-5">
           <h2 className="text-sm font-semibold text-slate-700">Order ({cart.length})</h2>
-          {cart.length > 0 && (
-            <button type="button" className="text-xs text-slate-400 hover:text-slate-700" onClick={resetCart}>
-              Clear
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {/* One switch for the bill: a customer is retail or wholesale, and
+                setting it per line would be a tap on every item. Flipping it
+                re-prices everything already in the cart. */}
+            <div className="flex overflow-hidden rounded-lg border border-slate-200">
+              {(["retail", "wholesale"] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => {
+                    setTierKind(k);
+                    setCart((prev) =>
+                      prev.map((l) =>
+                        repriced(l, l.qty, l.units.find((u) => u.unitId === l.unitId) ?? l.units[0], k)
+                      )
+                    );
+                  }}
+                  className={`px-2 py-1 text-[11px] font-medium capitalize transition-colors ${
+                    tierKind === k ? "bg-brand-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50"
+                  }`}
+                >
+                  {k}
+                </button>
+              ))}
+            </div>
+            {cart.length > 0 && (
+              <button type="button" className="text-xs text-slate-400 hover:text-slate-700" onClick={resetCart}>
+                Clear
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
@@ -475,7 +572,15 @@ export default function Pos() {
                   <div className="h-9 w-1 shrink-0 rounded-full bg-brand-500" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-slate-800">{l.name}</p>
-                    <p className="text-xs text-slate-500">{lkr(l.price)} each</p>
+                    <p className="text-xs text-slate-500">
+                      {lkr(l.price)} per {l.units.find((u) => u.unitId === l.unitId)?.code}
+                      {pricedByTier(
+                        l.detail,
+                        l.units.find((u) => u.unitId === l.unitId) ?? l.units[0],
+                        l.qty,
+                        tierKind
+                      ) && <span className="ml-1 text-brand-600">· {tierKind} price</span>}
+                    </p>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button
@@ -505,7 +610,27 @@ export default function Pos() {
                   </button>
                 </div>
 
-                <div className="mt-2 pl-4">
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 pl-4">
+                  {/* Only worth showing when the product actually defines
+                      alternates — most do not. */}
+                  {l.units.length > 1 && (
+                    <select
+                      className="rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-[11px] text-slate-700"
+                      value={l.unitId}
+                      onChange={(e) => setLineUnit(l.id, Number(e.target.value))}
+                      aria-label={`Unit for ${l.name}`}
+                    >
+                      {l.units.map((u) => (
+                        <option key={u.unitId} value={u.unitId}>
+                          {u.code}
+                          {u.factor !== 1 ? ` (${u.factor})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                <div className="mt-1.5 pl-4">
                   {editingDiscount === l.id || l.discount ? (
                     <DiscountControl
                       value={l.discount}
@@ -583,7 +708,7 @@ export default function Pos() {
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => addProduct(p)}
+                  onClick={() => add(p)}
                   title={`${p.name} · ${lkr(Number(p.selling_price))}`}
                   className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
                     inCart
