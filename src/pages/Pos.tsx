@@ -86,15 +86,18 @@ export default function Pos() {
     });
   }, [allProducts.data, activeCategory, search]);
 
-  const grouped = useMemo(() => {
-    const groups = new Map<string, Product[]>();
-    for (const p of visible) {
-      const cat = p.category_name ?? "Other";
-      if (!groups.has(cat)) groups.set(cat, []);
-      groups.get(cat)!.push(p);
-    }
-    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [visible]);
+  // One flat grid, still ordered by category so a category's products stay
+  // together and its colour band reads as a group. The headings are gone: the
+  // filter buttons above already say which category you are looking at, and a
+  // heading per group costs a row of products every time.
+  const ordered = useMemo(
+    () =>
+      [...visible].sort((a, b) => {
+        const cat = (a.category_name ?? "Other").localeCompare(b.category_name ?? "Other");
+        return cat !== 0 ? cat : a.name.localeCompare(b.name);
+      }),
+    [visible]
+  );
 
   const subtotal = useMemo(() => grossSubtotal(cart), [cart]);
   const savings = useMemo(() => discountTotal(cart, billDiscount), [cart, billDiscount]);
@@ -375,71 +378,67 @@ export default function Pos() {
           ))}
         </div>
 
-        <div className="space-y-6">
-          {grouped.map(([cat, items]) => (
-            <div key={cat}>
-              <h2 className="mb-2.5 text-sm font-semibold text-slate-700">{cat}</h2>
-              {/* Dense on purpose: fitting more products on screen saves more
-                  taps than a larger button does. The card earns its visibility
-                  from contrast — border, ring when in the cart, amber when out
-                  of stock — rather than from size. */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-2.5">
-                {items.map((p) => {
-                  const onHand = onHandByProduct.get(p.id);
-                  const outOfStock = onHand !== undefined && onHand <= 0;
-                  const inCart = cart.find((l) => l.productId === p.id);
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      disabled={outOfStock}
-                      onClick={() => addProduct(p)}
-                      className={`relative flex flex-col overflow-hidden rounded-lg border border-l-4 bg-white p-2.5 text-left transition-all duration-150
-                        ${categoryColor(cat)}
-                        ${
-                          outOfStock
-                            ? "border-slate-200 opacity-60 cursor-not-allowed"
-                            : inCart
-                              ? "border-brand-300 shadow-card ring-1 ring-brand-200"
-                              : "border-slate-200 shadow-sm hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-card"
-                        }`}
+        {/* Dense on purpose: fitting more products on screen saves more taps
+            than a larger button does. The card earns its visibility from
+            contrast — the category band, a ring when in the cart, amber when
+            out of stock — rather than from size. */}
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-2">
+          {ordered.map((p) => {
+            // The coloured band is the only category cue left now that
+            // the headings are gone.
+            const cat = p.category_name ?? "Other";
+            const onHand = onHandByProduct.get(p.id);
+            const outOfStock = onHand !== undefined && onHand <= 0;
+            const inCart = cart.find((l) => l.productId === p.id);
+            return (
+              <button
+                key={p.id}
+                type="button"
+                disabled={outOfStock}
+                onClick={() => addProduct(p)}
+                className={`relative flex flex-col overflow-hidden rounded-lg border border-l-4 bg-white p-2 text-left transition-all duration-150
+                  ${categoryColor(cat)}
+                  ${
+                    outOfStock
+                      ? "border-slate-200 opacity-60 cursor-not-allowed"
+                      : inCart
+                        ? "border-brand-300 shadow-card ring-1 ring-brand-200"
+                        : "border-slate-200 shadow-sm hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-card"
+                  }`}
+              >
+                {inCart && (
+                  <span className="absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1 text-[11px] font-semibold text-white">
+                    {inCart.qty}
+                  </span>
+                )}
+
+                {/* Two lines of name, then price and stock share the last
+                    line — the whole card is three lines tall. */}
+                <p className="min-h-[2rem] pr-4 text-xs font-medium leading-tight text-slate-800 line-clamp-2">
+                  {p.name}
+                </p>
+
+                <div className="mt-1 flex items-baseline justify-between gap-1">
+                  <span className="text-sm font-bold leading-none text-slate-900">
+                    {lkr(Number(p.selling_price))}
+                  </span>
+                  {onHand !== undefined && (
+                    <span
+                      className={`shrink-0 rounded px-1 text-[10px] font-medium leading-4 ${
+                        outOfStock ? "bg-amber-50 text-amber-700" : "text-slate-400"
+                      }`}
                     >
-                      {inCart && (
-                        <span className="absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1 text-[11px] font-semibold text-white">
-                          {inCart.qty}
-                        </span>
-                      )}
-
-                      {/* Two lines of name, then price and stock share the last
-                          line — the whole card is three lines tall. */}
-                      <p className="min-h-[2.2rem] pr-5 text-[13px] font-medium leading-snug text-slate-800 line-clamp-2">
-                        {p.name}
-                      </p>
-
-                      <div className="mt-1.5 flex items-baseline justify-between gap-1">
-                        <span className="text-[15px] font-bold leading-none text-slate-900">
-                          {lkr(Number(p.selling_price))}
-                        </span>
-                        {onHand !== undefined && (
-                          <span
-                            className={`shrink-0 rounded px-1 text-[10px] font-medium leading-4 ${
-                              outOfStock ? "bg-amber-50 text-amber-700" : "text-slate-400"
-                            }`}
-                          >
-                            {outOfStock ? "None" : `${onHand} ${p.base_unit_code}`}
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-          {grouped.length === 0 && (
-            <p className="py-10 text-center text-sm text-slate-400">No products match.</p>
-          )}
+                      {outOfStock ? "None" : `${onHand} ${p.base_unit_code}`}
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
+        {ordered.length === 0 && (
+          <p className="py-10 text-center text-sm text-slate-400">No products match.</p>
+        )}
       </div>
 
       {/* Full height so the order stays one column from header to buttons: the
