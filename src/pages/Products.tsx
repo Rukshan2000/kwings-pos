@@ -13,6 +13,8 @@ const emptyForm = {
   cost_price: "0",
   selling_price: "0",
   low_stock_at: "",
+  quick_add: false,
+  sort_order: 0,
 };
 type Form = typeof emptyForm;
 
@@ -71,6 +73,8 @@ export default function Products() {
       cost_price: p.cost_price,
       selling_price: p.selling_price,
       low_stock_at: p.low_stock_at ?? "",
+      quick_add: p.quick_add,
+      sort_order: p.sort_order,
     });
   };
 
@@ -248,6 +252,29 @@ export default function Products() {
               value={form.low_stock_at}
               onChange={(e) => setForm({ ...form, low_stock_at: e.target.value })}
             />
+
+            {/* Bags and the like: sold with almost every order, so they get a
+                button on the till rather than a trip through the product grid. */}
+            <label className="col-span-2 flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300 text-brand-600"
+                checked={form.quick_add}
+                onChange={(e) => setForm({ ...form, quick_add: e.target.checked })}
+              />
+              <span className="text-sm text-slate-700">Quick-add button on the till</span>
+              {form.quick_add && (
+                <input
+                  className="ml-auto w-20 rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-700"
+                  type="number"
+                  step="1"
+                  placeholder="Order"
+                  aria-label="Quick-add button order"
+                  value={form.sort_order}
+                  onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) || 0 })}
+                />
+              )}
+            </label>
 
             {error && <p className="text-sm text-amber-600">{error}</p>}
 

@@ -99,6 +99,17 @@ export default function Pos() {
     [visible]
   );
 
+  // Bags and the like. Ordered by the shop's own sort_order so Small/Medium/
+  // Large read in that order rather than alphabetically, which would lead with
+  // Large.
+  const quickAdds = useMemo(
+    () =>
+      (allProducts.data ?? [])
+        .filter((p) => p.quick_add)
+        .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)),
+    [allProducts.data]
+  );
+
   const subtotal = useMemo(() => grossSubtotal(cart), [cart]);
   const savings = useMemo(() => discountTotal(cart, billDiscount), [cart, billDiscount]);
   const billOff = useMemo(() => billDiscountAmount(cart, billDiscount), [cart, billDiscount]);
@@ -564,7 +575,31 @@ export default function Pos() {
           </p>
         )}
 
-        <div className="flex gap-2 px-5 pb-5">
+        {quickAdds.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 px-5 pb-1">
+            {quickAdds.map((p) => {
+              const inCart = cart.find((l) => l.productId === p.id);
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => addProduct(p)}
+                  title={`${p.name} · ${lkr(Number(p.selling_price))}`}
+                  className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                    inCart
+                      ? "border-brand-300 bg-brand-50 text-brand-700"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  + {p.name}
+                  {inCart && <span className="ml-1 font-semibold">×{inCart.qty}</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex gap-2 px-5 pb-5 pt-2">
           <button
             type="button"
             className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"

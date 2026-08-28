@@ -65,6 +65,11 @@ pub struct Product {
     pub selling_price: Decimal,
     pub low_stock_at: Option<Decimal>,
     pub active: bool,
+    /// Offered as a one-tap button on the till, beside Hold — shopping bags and
+    /// anything else sold alongside almost every order.
+    pub quick_add: bool,
+    /// Orders the quick-add buttons; ties fall back to name.
+    pub sort_order: i32,
 }
 
 #[derive(Serialize)]
@@ -86,6 +91,10 @@ pub struct ProductInput {
     pub cost_price: Decimal,
     pub selling_price: Decimal,
     pub low_stock_at: Option<Decimal>,
+    #[serde(default)]
+    pub quick_add: bool,
+    #[serde(default)]
+    pub sort_order: i32,
 }
 
 #[derive(Deserialize)]
@@ -108,7 +117,8 @@ const PRODUCT_SELECT: &str = "
            p.category_id, c.name AS category_name,
            p.brand_id, b.name AS brand_name,
            p.base_unit_id, u.code AS base_unit_code,
-           p.cost_price, p.selling_price, p.low_stock_at, p.active
+           p.cost_price, p.selling_price, p.low_stock_at, p.active,
+           p.quick_add, p.sort_order
     FROM product p
     LEFT JOIN category c ON c.id = p.category_id
     LEFT JOIN brand b ON b.id = p.brand_id
@@ -325,8 +335,8 @@ pub async fn create_product(
 
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO product (sku, barcode, name, category_id, brand_id, base_unit_id,
-                               cost_price, selling_price, low_stock_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                               cost_price, selling_price, low_stock_at, quick_add, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING id",
     )
     .bind(non_empty(input.sku))
@@ -338,6 +348,8 @@ pub async fn create_product(
     .bind(input.cost_price)
     .bind(input.selling_price)
     .bind(input.low_stock_at)
+    .bind(input.quick_add)
+    .bind(input.sort_order)
     .fetch_one(&db.pool)
     .await
     .map_err(map_unique_violation)?;
@@ -357,8 +369,9 @@ pub async fn update_product(
     sqlx::query(
         "UPDATE product SET sku = $1, barcode = $2, name = $3, category_id = $4,
                              brand_id = $5, base_unit_id = $6, cost_price = $7,
-                             selling_price = $8, low_stock_at = $9
-         WHERE id = $10",
+                             selling_price = $8, low_stock_at = $9,
+                             quick_add = $10, sort_order = $11
+         WHERE id = $12",
     )
     .bind(non_empty(input.sku))
     .bind(non_empty(input.barcode))
@@ -369,6 +382,8 @@ pub async fn update_product(
     .bind(input.cost_price)
     .bind(input.selling_price)
     .bind(input.low_stock_at)
+    .bind(input.quick_add)
+    .bind(input.sort_order)
     .bind(id)
     .execute(&db.pool)
     .await

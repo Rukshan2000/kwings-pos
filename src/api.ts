@@ -22,6 +22,9 @@ export type Product = {
   selling_price: string;
   low_stock_at: string | null;
   active: boolean;
+  /** Offered as a one-tap button on the till, beside Hold. */
+  quick_add: boolean;
+  sort_order: number;
 };
 
 export type ProductUnit = {
@@ -167,6 +170,8 @@ export type ProductInput = {
   cost_price: string;
   selling_price: string;
   low_stock_at: string | null;
+  quick_add: boolean;
+  sort_order: number;
 };
 
 export const api = {

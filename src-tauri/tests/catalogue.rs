@@ -118,3 +118,58 @@ async fn a_shop_created_unit_works_as_a_base_unit() {
     server.stop().unwrap();
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// Quick-add products are a flag on `product`, not a hardcoded list of bag
+/// sizes: a shop that sells string, ice or a delivery charge the same way gets a
+/// button for it without a code change. `sort_order` is what keeps
+/// Small/Medium/Large in that order rather than alphabetical.
+#[tokio::test]
+async fn quick_add_products_come_back_in_the_shops_own_order() {
+    let root = temp_root("quick-add");
+    let (mut server, pool) = migrated_pool(&root).await;
+
+    let pc: i64 = sqlx::query_scalar("SELECT id FROM unit WHERE code = 'pc'")
+        .fetch_one(&pool).await.unwrap();
+
+    for (name, price, quick, order) in [
+        ("Shopping Bag - Large", "25.00", true, 3),
+        ("Shopping Bag - Small", "10.00", true, 1),
+        ("Shopping Bag - Medium", "15.00", true, 2),
+        ("Urea 50kg Bag", "4500.00", false, 0),
+    ] {
+        sqlx::query(
+            "INSERT INTO product (name, base_unit_id, selling_price, quick_add, sort_order)
+             VALUES ($1, $2, $3::numeric, $4, $5)"
+        ).bind(name).bind(pc).bind(price).bind(quick).bind(order)
+         .execute(&pool).await.unwrap();
+    }
+
+    let names: Vec<String> = sqlx::query_scalar(
+        "SELECT name FROM product WHERE quick_add ORDER BY sort_order, name"
+    ).fetch_all(&pool).await.unwrap();
+
+    assert_eq!(
+        names,
+        vec![
+            "Shopping Bag - Small".to_string(),
+            "Shopping Bag - Medium".to_string(),
+            "Shopping Bag - Large".to_string(),
+        ],
+        "sorted by the shop's order, not alphabetically — which would lead with Large"
+    );
+
+    // Ordinary stock is not swept onto the till's button row.
+    let flagged: i64 = sqlx::query_scalar("SELECT count(*) FROM product WHERE quick_add")
+        .fetch_one(&pool).await.unwrap();
+    assert_eq!(flagged, 3);
+
+    // Existing products predate the column and must not all become buttons.
+    let default_off: bool = sqlx::query_scalar(
+        "SELECT quick_add FROM product WHERE name = 'Urea 50kg Bag'"
+    ).fetch_one(&pool).await.unwrap();
+    assert!(!default_off, "the column defaults to false");
+
+    pool.close().await;
+    server.stop().unwrap();
+    let _ = std::fs::remove_dir_all(&root);
+}
