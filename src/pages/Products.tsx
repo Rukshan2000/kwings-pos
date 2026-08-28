@@ -12,7 +12,7 @@ const emptyForm = {
   base_unit_id: 0,
   cost_price: "0",
   selling_price: "0",
-  low_stock_at: "",
+  low_stock_at: "0",
   quick_add: false,
   sort_order: 0,
 };
@@ -46,7 +46,12 @@ export default function Products() {
   };
 
   const save = useMutation({
-    mutationFn: () => (editing ? api.updateProduct(editing.id, form) : api.createProduct(form)),
+    mutationFn: () => {
+      // The number input yields "" when cleared, which is not a NUMERIC the
+      // backend can bind now that the column is NOT NULL.
+      const input = { ...form, low_stock_at: form.low_stock_at.trim() || "0" };
+      return editing ? api.updateProduct(editing.id, input) : api.createProduct(input);
+    },
     onSuccess: () => {
       invalidate();
       setEditing(null);
@@ -72,7 +77,7 @@ export default function Products() {
       base_unit_id: p.base_unit_id,
       cost_price: p.cost_price,
       selling_price: p.selling_price,
-      low_stock_at: p.low_stock_at ?? "",
+      low_stock_at: p.low_stock_at,
       quick_add: p.quick_add,
       sort_order: p.sort_order,
     });
@@ -245,13 +250,20 @@ export default function Products() {
                 onChange={(e) => setForm({ ...form, selling_price: e.target.value })}
               />
             </div>
-            <input
-              className="field"
-              type="number" step="0.001" min="0"
-              placeholder="Low stock threshold (optional)"
-              value={form.low_stock_at}
-              onChange={(e) => setForm({ ...form, low_stock_at: e.target.value })}
-            />
+            <label className="col-span-2 block">
+              <span className="label">Low stock threshold *</span>
+              <input
+                className="field mt-1"
+                type="number" step="0.001" min="0"
+                required
+                placeholder="0"
+                value={form.low_stock_at}
+                onChange={(e) => setForm({ ...form, low_stock_at: e.target.value })}
+              />
+              <span className="mt-1 block text-xs text-slate-400">
+                Warn on the inventory screen when stock falls to this. 0 to never warn.
+              </span>
+            </label>
 
             {/* Bags and the like: sold with almost every order, so they get a
                 button on the till rather than a trip through the product grid. */}

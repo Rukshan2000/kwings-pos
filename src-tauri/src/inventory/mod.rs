@@ -18,7 +18,7 @@ pub struct StockLevel {
     pub sku: Option<String>,
     pub base_unit_code: String,
     pub on_hand: Decimal,
-    pub low_stock_at: Option<Decimal>,
+    pub low_stock_at: Decimal,
     pub cost_price: Decimal,
 }
 
@@ -77,7 +77,9 @@ pub async fn stock_levels(
          {}
          ORDER BY p.name",
         if low_stock_only {
-            "HAVING p.low_stock_at IS NOT NULL AND COALESCE(SUM(m.quantity), 0) <= p.low_stock_at"
+            // A threshold of 0 is the shop opting out: an out-of-stock item
+            // sitting at 0 would otherwise be "low" forever.
+            "HAVING p.low_stock_at > 0 AND COALESCE(SUM(m.quantity), 0) <= p.low_stock_at"
         } else {
             ""
         }

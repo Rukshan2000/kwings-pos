@@ -16,12 +16,13 @@ async fn migrated_pool(root: &std::path::Path) -> (PgServer, PgPool) {
     (server, pool)
 }
 
-async fn make_product(pool: &PgPool, name: &str, low_stock_at: Option<&str>) -> i64 {
+/// `low_stock_at` is NOT NULL; 0 is how a product opts out of the warning.
+async fn make_product(pool: &PgPool, name: &str, low_stock_at: &str) -> i64 {
     let pc: i64 = sqlx::query_scalar("SELECT id FROM unit WHERE code = 'pc'")
         .fetch_one(pool).await.unwrap();
     sqlx::query_scalar(
         "INSERT INTO product (name, base_unit_id, low_stock_at) VALUES ($1, $2, $3) RETURNING id"
-    ).bind(name).bind(pc).bind(low_stock_at.map(|s| s.parse::<rust_decimal::Decimal>().unwrap()))
+    ).bind(name).bind(pc).bind(low_stock_at.parse::<rust_decimal::Decimal>().unwrap())
      .fetch_one(pool).await.unwrap()
 }
 
@@ -29,7 +30,7 @@ async fn make_product(pool: &PgPool, name: &str, low_stock_at: Option<&str>) -> 
 async fn ledger_sum_is_current_stock_and_never_mutates() {
     let root = temp_root("ledger");
     let (mut server, pool) = migrated_pool(&root).await;
-    let product_id = make_product(&pool, "Urea 50kg Bag", Some("5")).await;
+    let product_id = make_product(&pool, "Urea 50kg Bag", "5").await;
 
     // opening +100, a sale -3, an adjustment -2 (breakage) -> 95 on hand
     for (qty, reason) in [("100", "opening"), ("-3", "sale"), ("-2", "adjustment")] {
@@ -58,7 +59,7 @@ async fn ledger_sum_is_current_stock_and_never_mutates() {
 async fn recording_opening_stock_twice_is_rejected() {
     let root = temp_root("opening-twice");
     let (mut server, pool) = migrated_pool(&root).await;
-    let product_id = make_product(&pool, "Weedicide 1L", None).await;
+    let product_id = make_product(&pool, "Weedicide 1L", "0").await;
 
     async fn already(pool: &PgPool, product_id: i64) -> bool {
         sqlx::query_scalar::<_, bool>(
@@ -82,9 +83,11 @@ async fn low_stock_filter_matches_the_threshold_boundary() {
     let root = temp_root("lowstock");
     let (mut server, pool) = migrated_pool(&root).await;
 
-    let low = make_product(&pool, "Low Item", Some("10")).await;
-    let ok = make_product(&pool, "OK Item", Some("10")).await;
-    let unlimited = make_product(&pool, "No Threshold", None).await;
+    let low = make_product(&pool, "Low Item", "10").await;
+    let ok = make_product(&pool, "OK Item", "10").await;
+    // 0 opts out. Without the `> 0` guard this one, sitting at 0 on hand, would
+    // be "low" permanently — 0 <= 0.
+    let unlimited = make_product(&pool, "No Threshold", "0").await;
 
     for (id, qty) in [(low, "5"), (ok, "50"), (unlimited, "0")] {
         sqlx::query(
@@ -98,10 +101,47 @@ async fn low_stock_filter_matches_the_threshold_boundary() {
         "SELECT p.name FROM product p
          LEFT JOIN stock_movement m ON m.product_id = p.id
          GROUP BY p.id, p.name, p.low_stock_at
-         HAVING p.low_stock_at IS NOT NULL AND COALESCE(SUM(m.quantity), 0) <= p.low_stock_at"
+         HAVING p.low_stock_at > 0 AND COALESCE(SUM(m.quantity), 0) <= p.low_stock_at"
     ).fetch_all(&pool).await.unwrap();
 
     assert_eq!(low_names, vec!["Low Item".to_string()]);
+
+    pool.close().await;
+    server.stop().unwrap();
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// Every product carries a threshold now. The migration had to decide what the
+/// products that predate it mean, and it says 0 — warn about nothing, which is
+/// exactly what a NULL did before.
+#[tokio::test]
+async fn every_product_has_a_threshold_and_zero_means_never_warn() {
+    let root = temp_root("threshold");
+    let (mut server, pool) = migrated_pool(&root).await;
+
+    let pc: i64 = sqlx::query_scalar("SELECT id FROM unit WHERE code = 'pc'")
+        .fetch_one(&pool).await.unwrap();
+
+    // Not naming the column at all is the "saved without thinking about it"
+    // case the default has to cover.
+    let id: i64 = sqlx::query_scalar(
+        "INSERT INTO product (name, base_unit_id) VALUES ('Unspecified', $1) RETURNING id"
+    ).bind(pc).fetch_one(&pool).await.unwrap();
+
+    let threshold: rust_decimal::Decimal = sqlx::query_scalar(
+        "SELECT low_stock_at FROM product WHERE id = $1"
+    ).bind(id).fetch_one(&pool).await.unwrap();
+    assert_eq!(threshold, rust_decimal::Decimal::ZERO, "defaults to 0, not NULL");
+
+    // NULL is no longer sayable.
+    let nulled = sqlx::query("UPDATE product SET low_stock_at = NULL WHERE id = $1")
+        .bind(id).execute(&pool).await;
+    assert!(nulled.is_err(), "the column is NOT NULL");
+
+    // Nor is a negative threshold, which could never be reached.
+    let negative = sqlx::query("UPDATE product SET low_stock_at = -1 WHERE id = $1")
+        .bind(id).execute(&pool).await;
+    assert!(negative.is_err(), "the CHECK constraint rejects a negative threshold");
 
     pool.close().await;
     server.stop().unwrap();

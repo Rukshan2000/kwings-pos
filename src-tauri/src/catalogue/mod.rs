@@ -63,7 +63,9 @@ pub struct Product {
     pub base_unit_code: String,
     pub cost_price: Decimal,
     pub selling_price: Decimal,
-    pub low_stock_at: Option<Decimal>,
+    /// Stock at or below this warns on the inventory screen. 0 means "never
+    /// warn" — the shop saying so, rather than the field having been skipped.
+    pub low_stock_at: Decimal,
     pub active: bool,
     /// Offered as a one-tap button on the till, beside Hold — shopping bags and
     /// anything else sold alongside almost every order.
@@ -90,7 +92,7 @@ pub struct ProductInput {
     pub base_unit_id: i64,
     pub cost_price: Decimal,
     pub selling_price: Decimal,
-    pub low_stock_at: Option<Decimal>,
+    pub low_stock_at: Decimal,
     #[serde(default)]
     pub quick_add: bool,
     #[serde(default)]

@@ -20,7 +20,7 @@ export type Product = {
   base_unit_code: string;
   cost_price: string;
   selling_price: string;
-  low_stock_at: string | null;
+  low_stock_at: string;
   active: boolean;
   /** Offered as a one-tap button on the till, beside Hold. */
   quick_add: boolean;
@@ -146,7 +146,7 @@ export type StockLevel = {
   sku: string | null;
   base_unit_code: string;
   on_hand: string;
-  low_stock_at: string | null;
+  low_stock_at: string;
   cost_price: string;
 };
 
@@ -169,7 +169,7 @@ export type ProductInput = {
   base_unit_id: number;
   cost_price: string;
   selling_price: string;
-  low_stock_at: string | null;
+  low_stock_at: string;
   quick_add: boolean;
   sort_order: number;
 };

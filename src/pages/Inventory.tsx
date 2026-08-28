@@ -73,7 +73,9 @@ export default function Inventory() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {levels.data?.map((l) => {
-                const low = l.low_stock_at !== null && Number(l.on_hand) <= Number(l.low_stock_at);
+                // 0 is the shop opting out of the warning, not a threshold an
+                // out-of-stock item permanently sits on.
+                const low = Number(l.low_stock_at) > 0 && Number(l.on_hand) <= Number(l.low_stock_at);
                 return (
                   <tr
                     key={l.product_id}
@@ -88,7 +90,9 @@ export default function Inventory() {
                       {l.on_hand}
                     </td>
                     <td className="px-2 py-2.5 text-slate-500">{l.base_unit_code}</td>
-                    <td className="px-2 py-2.5 text-slate-500">{l.low_stock_at ?? "—"}</td>
+                    <td className="px-2 py-2.5 text-slate-500">
+                      {Number(l.low_stock_at) > 0 ? l.low_stock_at : "—"}
+                    </td>
                   </tr>
                 );
               })}
