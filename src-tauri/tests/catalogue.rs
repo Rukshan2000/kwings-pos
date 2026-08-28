@@ -173,3 +173,61 @@ async fn quick_add_products_come_back_in_the_shops_own_order() {
     server.stop().unwrap();
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// Archiving hides a product; it does not delete one. Restoring has to bring it
+/// back with everything still attached, which is the whole reason archive is a
+/// flag rather than a DELETE.
+#[tokio::test]
+async fn an_archived_product_can_be_restored_with_its_history() {
+    let root = temp_root("restore");
+    let (mut server, pool) = migrated_pool(&root).await;
+
+    let pc: i64 = sqlx::query_scalar("SELECT id FROM unit WHERE code = 'pc'")
+        .fetch_one(&pool).await.unwrap();
+    let id: i64 = sqlx::query_scalar(
+        "INSERT INTO product (name, base_unit_id, selling_price) VALUES ('Weedicide 1L', $1, 60.00) RETURNING id"
+    ).bind(pc).fetch_one(&pool).await.unwrap();
+
+    sqlx::query("INSERT INTO stock_movement (product_id, location_id, quantity, reason) VALUES ($1, 1, 25, 'opening')")
+        .bind(id).execute(&pool).await.unwrap();
+
+    // archive_product
+    sqlx::query("UPDATE product SET active = false, archived_at = now() WHERE id = $1")
+        .bind(id).execute(&pool).await.unwrap();
+
+    let on_sale: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM product WHERE archived_at IS NULL AND id = $1"
+    ).bind(id).fetch_one(&pool).await.unwrap();
+    assert_eq!(on_sale, 0, "archived products drop out of the default list");
+
+    let in_archive: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM product WHERE archived_at IS NOT NULL AND id = $1"
+    ).bind(id).fetch_one(&pool).await.unwrap();
+    assert_eq!(in_archive, 1, "and turn up in the archived one");
+
+    // The ledger is untouched by archiving — this is what would have been lost
+    // to a DELETE.
+    let on_hand: rust_decimal::Decimal = sqlx::query_scalar(
+        "SELECT COALESCE(SUM(quantity), 0) FROM stock_movement WHERE product_id = $1"
+    ).bind(id).fetch_one(&pool).await.unwrap();
+    assert_eq!(on_hand, "25".parse().unwrap());
+
+    // restore_product
+    sqlx::query("UPDATE product SET active = true, archived_at = NULL WHERE id = $1")
+        .bind(id).execute(&pool).await.unwrap();
+
+    let (active, archived_at): (bool, Option<chrono::DateTime<chrono::Utc>>) =
+        sqlx::query_as("SELECT active, archived_at FROM product WHERE id = $1")
+            .bind(id).fetch_one(&pool).await.unwrap();
+    assert!(active, "restored products are active again");
+    assert!(archived_at.is_none(), "and no longer archived");
+
+    let after: rust_decimal::Decimal = sqlx::query_scalar(
+        "SELECT COALESCE(SUM(quantity), 0) FROM stock_movement WHERE product_id = $1"
+    ).bind(id).fetch_one(&pool).await.unwrap();
+    assert_eq!(after, on_hand, "stock came back with it");
+
+    pool.close().await;
+    server.stop().unwrap();
+    let _ = std::fs::remove_dir_all(&root);
+}

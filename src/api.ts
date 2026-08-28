@@ -184,12 +184,14 @@ export const api = {
   units: () => invoke<Unit[]>("list_units"),
   createUnit: (code: string, name: string) => invoke<Unit>("create_unit", { code, name }),
 
-  products: (search?: string) => invoke<Product[]>("list_products", { search }),
+  products: (search?: string, archived?: boolean) =>
+    invoke<Product[]>("list_products", { search, archived }),
   product: (id: number) => invoke<ProductDetail>("get_product", { id }),
   createProduct: (input: ProductInput) => invoke<Product>("create_product", { input }),
   updateProduct: (id: number, input: ProductInput) =>
     invoke<Product>("update_product", { id, input }),
   archiveProduct: (id: number) => invoke<void>("archive_product", { id }),
+  restoreProduct: (id: number) => invoke<Product>("restore_product", { id }),
 
   setProductUnit: (
     productId: number,

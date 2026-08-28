@@ -249,17 +249,27 @@ pub async fn create_unit(
 }
 
 #[tauri::command]
+/// `archived = Some(true)` lists what has been archived instead of what is on
+/// sale — the same rows, the other side of the same flag, so restoring does not
+/// need a screen or a query of its own.
 pub async fn list_products(
     state: tauri::State<'_, AppDb>,
     search: Option<String>,
+    archived: Option<bool>,
 ) -> Result<Vec<Product>, DbError> {
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
 
+    let scope = if archived.unwrap_or(false) {
+        "p.archived_at IS NOT NULL"
+    } else {
+        "p.archived_at IS NULL"
+    };
+
     let rows = match search.filter(|s| !s.trim().is_empty()) {
         Some(q) => {
             sqlx::query_as::<_, Product>(&format!(
-                "{PRODUCT_SELECT} WHERE p.archived_at IS NULL
+                "{PRODUCT_SELECT} WHERE {scope}
                  AND (p.name ILIKE $1 OR p.sku ILIKE $1 OR p.barcode = $2)
                  ORDER BY p.name LIMIT 200"
             ))
@@ -270,7 +280,7 @@ pub async fn list_products(
         }
         None => {
             sqlx::query_as::<_, Product>(&format!(
-                "{PRODUCT_SELECT} WHERE p.archived_at IS NULL ORDER BY p.name LIMIT 200"
+                "{PRODUCT_SELECT} WHERE {scope} ORDER BY p.name LIMIT 200"
             ))
             .fetch_all(&db.pool)
             .await?
@@ -405,6 +415,20 @@ pub async fn archive_product(state: tauri::State<'_, AppDb>, id: i64) -> Result<
         .execute(&db.pool)
         .await?;
     Ok(())
+}
+
+/// Undoes an archive. Nothing was deleted, so this is only clearing the flag
+/// that hid the product — its history, stock and price tiers are untouched and
+/// come back with it.
+#[tauri::command]
+pub async fn restore_product(state: tauri::State<'_, AppDb>, id: i64) -> Result<Product, DbError> {
+    let guard = state.0.read().await;
+    let db = guard.as_ref().ok_or(DbError::NotReady)?;
+    sqlx::query("UPDATE product SET active = true, archived_at = NULL WHERE id = $1")
+        .bind(id)
+        .execute(&db.pool)
+        .await?;
+    fetch_product(&db.pool, id).await
 }
 
 #[tauri::command]

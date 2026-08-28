@@ -32,6 +32,7 @@ pub fn run() {
             catalogue::create_product,
             catalogue::update_product,
             catalogue::archive_product,
+            catalogue::restore_product,
             catalogue::set_product_unit,
             catalogue::set_price_tier,
             inventory::stock_levels,

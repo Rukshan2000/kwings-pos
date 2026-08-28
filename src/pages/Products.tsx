@@ -26,10 +26,11 @@ export default function Products() {
   const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [confirmArchive, setConfirmArchive] = useState<number | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   const products = useQuery({
-    queryKey: ["products", search],
-    queryFn: () => api.products(search || undefined),
+    queryKey: ["products", search, showArchived],
+    queryFn: () => api.products(search || undefined, showArchived),
   });
   const categories = useQuery({ queryKey: ["categories"], queryFn: api.categories });
   const brands = useQuery({ queryKey: ["brands"], queryFn: api.brands });
@@ -59,6 +60,12 @@ export default function Products() {
       setForm(emptyForm);
       setError("");
     },
+    onError: (e) => setError(e instanceof Error ? e.message : String(e)),
+  });
+
+  const restore = useMutation({
+    mutationFn: (id: number) => api.restoreProduct(id),
+    onSuccess: invalidate,
     onError: (e) => setError(e instanceof Error ? e.message : String(e)),
   });
 
@@ -99,12 +106,31 @@ export default function Products() {
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-5 items-start">
       <div className="card p-6">
-        <input
-          className="field mb-4"
-          placeholder="Search by name, SKU or scan a barcode…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <div className="mb-4 flex items-center gap-3">
+          <input
+            className="field"
+            placeholder="Search by name, SKU or scan a barcode…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {/* Archiving hides a product; this is where it went. Nothing is ever
+              deleted, so anything listed here can come straight back. */}
+          <button
+            type="button"
+            className={`shrink-0 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors ${
+              showArchived
+                ? "bg-slate-900 text-white"
+                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+            onClick={() => {
+              setShowArchived((v) => !v);
+              setConfirmArchive(null);
+              setError("");
+            }}
+          >
+            {showArchived ? "Viewing archived" : "Archived"}
+          </button>
+        </div>
 
         <div className="overflow-x-auto -mx-2">
           <table className="w-full text-sm">
@@ -134,16 +160,32 @@ export default function Products() {
                   <td className="px-2 py-2.5 font-medium text-slate-800">{p.selling_price}</td>
                   <td className="px-2 py-2.5">
                     <div className="flex gap-1.5 whitespace-nowrap">
-                      <button
-                        type="button"
-                        className="btn-secondary !py-1 !px-2.5 text-xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startEdit(p);
-                        }}
-                      >
-                        Edit
-                      </button>
+                      {!showArchived && (
+                        <button
+                          type="button"
+                          className="btn-secondary !py-1 !px-2.5 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEdit(p);
+                          }}
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {showArchived ? (
+                        <button
+                          type="button"
+                          className="btn-secondary !py-1 !px-2.5 text-xs"
+                          disabled={restore.isPending}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            restore.mutate(p.id);
+                          }}
+                        >
+                          {restore.isPending && restore.variables === p.id ? "Restoring…" : "Restore"}
+                        </button>
+                      ) : (
+                        <>
                       {/* An in-app confirm, not window.confirm(): the webview
                           this runs in does not implement the native dialog, so
                           confirm() returned false immediately and the button
@@ -184,6 +226,8 @@ export default function Products() {
                           Archive
                         </button>
                       )}
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -191,7 +235,7 @@ export default function Products() {
               {products.data?.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-2 py-10 text-center text-slate-400">
-                    No products found.
+                    {showArchived ? "Nothing archived." : "No products found."}
                   </td>
                 </tr>
               )}
