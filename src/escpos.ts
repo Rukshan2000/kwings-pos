@@ -2,7 +2,17 @@
 // 80mm at Font A = 48 characters per line, 576 dots wide.
 
 import { SHOP } from "./shop";
-import { Bill, lineTotal, money, subtotal } from "./types";
+import {
+  Bill,
+  billDiscountAmount,
+  describeDiscount,
+  discountTotal,
+  grandTotal,
+  lineDiscount,
+  lineGross,
+  money,
+  subtotal,
+} from "./types";
 
 export const COLS = 48;
 export const DOTS = 576;
@@ -136,6 +146,9 @@ export function buildReceipt(bill: Bill, logo: Uint8Array | null, openDrawer = f
   const b = new Buf().init();
   const d = bill.date;
   const sub = subtotal(bill.items);
+  const off = discountTotal(bill.items, bill.billDiscount);
+  const billOff = billDiscountAmount(bill.items, bill.billDiscount);
+  const total = grandTotal(bill.items, bill.billDiscount);
   const dash = "-".repeat(COLS);
 
   b.align("center");
@@ -156,19 +169,37 @@ export function buildReceipt(bill: Bill, logo: Uint8Array | null, openDrawer = f
     b.bold(true);
     for (const l of wrap(i.name)) b.line(l);
     b.bold(false);
+    // The line always prints at full price; a discount shows as its own row
+    // underneath, so the customer can see what was taken off and why.
     b.line(
       row(
         `  ${i.qty} x ${SHOP.currency} ${money(i.price)}`,
-        `${SHOP.currency} ${money(lineTotal(i))}`
+        `${SHOP.currency} ${money(lineGross(i))}`
       )
     );
+    const lineOff = lineDiscount(i);
+    if (i.discount && lineOff > 0) {
+      b.line(
+        row(
+          `  Discount ${describeDiscount(i.discount)}`,
+          `-${SHOP.currency} ${money(lineOff)}`
+        )
+      );
+    }
   }
 
   b.line(dash);
   b.line(row("Subtotal:", `${SHOP.currency} ${money(sub)}`));
+  if (billOff > 0) {
+    const what = bill.billDiscount ? ` (${describeDiscount(bill.billDiscount)})` : "";
+    b.line(row(`Bill discount${what}:`, `-${SHOP.currency} ${money(billOff)}`));
+  }
+  if (off > 0) {
+    b.bold(true).line(row("You saved:", `-${SHOP.currency} ${money(off)}`)).bold(false);
+  }
   // Double width halves the usable columns, so lay the TOTAL out over 24.
   b.bold(true).size(2, 2);
-  b.line(row("TOTAL:", `${SHOP.currency} ${money(sub)}`, COLS / 2));
+  b.line(row("TOTAL:", `${SHOP.currency} ${money(total)}`, COLS / 2));
   b.size(1, 1).bold(false);
   b.line(dash);
 

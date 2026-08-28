@@ -1,11 +1,24 @@
 import { SHOP } from "../shop";
-import { Bill, lineTotal, money, subtotal } from "../types";
+import {
+  Bill,
+  billDiscountAmount,
+  describeDiscount,
+  discountTotal,
+  grandTotal,
+  lineDiscount,
+  lineGross,
+  money,
+  subtotal,
+} from "../types";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
 export default function Receipt({ bill }: { bill: Bill }) {
   const d = bill.date;
   const sub = subtotal(bill.items);
+  const off = discountTotal(bill.items, bill.billDiscount);
+  const billOff = billDiscountAmount(bill.items, bill.billDiscount);
+  const total = grandTotal(bill.items, bill.billDiscount);
 
   return (
     <div className="receipt" id="receipt">
@@ -45,9 +58,17 @@ export default function Receipt({ bill }: { bill: Bill }) {
                 {i.qty} x {SHOP.currency} {money(i.price)}
               </span>
               <b>
-                {SHOP.currency} {money(lineTotal(i))}
+                {SHOP.currency} {money(lineGross(i))}
               </b>
             </div>
+            {i.discount && lineDiscount(i) > 0 && (
+              <div className="r-item-line">
+                <span>{`  Discount ${describeDiscount(i.discount)}`}</span>
+                <b>
+                  −{SHOP.currency} {money(lineDiscount(i))}
+                </b>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -60,10 +81,26 @@ export default function Receipt({ bill }: { bill: Bill }) {
           {SHOP.currency} {money(sub)}
         </span>
       </div>
+      {billOff > 0 && (
+        <div className="r-sum">
+          <span>{`Bill discount${bill.billDiscount ? ` (${describeDiscount(bill.billDiscount)})` : ""}:`}</span>
+          <span>
+            −{SHOP.currency} {money(billOff)}
+          </span>
+        </div>
+      )}
+      {off > 0 && (
+        <div className="r-sum">
+          <span>You saved:</span>
+          <span>
+            −{SHOP.currency} {money(off)}
+          </span>
+        </div>
+      )}
       <div className="r-total">
         <span>TOTAL:</span>
         <span>
-          {SHOP.currency} {money(sub)}
+          {SHOP.currency} {money(total)}
         </span>
       </div>
 

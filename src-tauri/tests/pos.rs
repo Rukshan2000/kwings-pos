@@ -197,3 +197,83 @@ async fn held_sale_does_not_touch_stock_until_completed() {
     server.stop().unwrap();
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// Mirrors the discount half of `pos::write_lines_and_discounts` — the amounts
+/// come from `domain::money::bill_totals`, which is the same function the real
+/// command uses, so this exercises the SQL rather than re-deriving the maths.
+#[tokio::test]
+async fn discounts_are_recorded_against_the_line_and_the_bill() {
+    use greenplus_pos_lib::domain::money::{bill_totals, Discount, PricedLine};
+    use rust_decimal::Decimal;
+
+    let root = temp_root("discount");
+    let (mut server, pool) = migrated_pool(&root).await;
+    let pc: i64 = sqlx::query_scalar("SELECT id FROM unit WHERE code = 'pc'").fetch_one(&pool).await.unwrap();
+    let product_id = stocked_product(&pool, "NPK Fertilizer 10kg", "100").await;
+
+    // 10 x 100.00 = 1000.00 gross, 100.00 off the line, then 10% off the bill.
+    let lines = vec![PricedLine {
+        qty: "10".parse().unwrap(),
+        unit_price: "100.00".parse().unwrap(),
+        discount: Some(Discount::Fixed("100.00".parse().unwrap())),
+    }];
+    let totals = bill_totals(&lines, Some(Discount::Percent("10".parse().unwrap())));
+
+    let mut tx = pool.begin().await.unwrap();
+    let sale_id: i64 = sqlx::query_scalar(
+        "INSERT INTO sale (location_id, status, subtotal, discount_total, grand_total)
+         VALUES (1, 'held', $1, $2, $3) RETURNING id"
+    ).bind(totals.subtotal).bind(totals.discount_total).bind(totals.grand_total)
+     .fetch_one(&mut *tx).await.unwrap();
+
+    let line_id: i64 = sqlx::query_scalar(
+        "INSERT INTO sale_line (sale_id, product_id, unit_id, quantity, unit_price, discount_amount, line_total)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id"
+    ).bind(sale_id).bind(product_id).bind(pc)
+     .bind(lines[0].qty).bind(lines[0].unit_price)
+     .bind(totals.lines[0].discount_amount).bind(totals.lines[0].line_total)
+     .fetch_one(&mut *tx).await.unwrap();
+
+    sqlx::query(
+        "INSERT INTO sale_discount (sale_id, sale_line_id, scope, kind, value, amount)
+         VALUES ($1, $2, 'line', 'fixed', 100.00, $3)"
+    ).bind(sale_id).bind(line_id).bind(totals.lines[0].discount_amount)
+     .execute(&mut *tx).await.unwrap();
+    sqlx::query(
+        "INSERT INTO sale_discount (sale_id, sale_line_id, scope, kind, value, amount)
+         VALUES ($1, NULL, 'bill', 'percent', 10, $2)"
+    ).bind(sale_id).bind(totals.bill_discount_amount)
+     .execute(&mut *tx).await.unwrap();
+    tx.commit().await.unwrap();
+
+    let (subtotal, discount_total, grand_total): (Decimal, Decimal, Decimal) =
+        sqlx::query_as("SELECT subtotal, discount_total, grand_total FROM sale WHERE id = $1")
+            .bind(sale_id).fetch_one(&pool).await.unwrap();
+    assert_eq!(subtotal, "1000.00".parse().unwrap());
+    assert_eq!(discount_total, "190.00".parse().unwrap(), "100 off the line, then 10% of the remaining 900");
+    assert_eq!(grand_total, "810.00".parse().unwrap());
+    assert_eq!(subtotal - discount_total, grand_total, "the receipt's three numbers must reconcile");
+
+    // NUMERIC(14,2) round-trip: the stored amounts are the ones we computed.
+    let banked: Decimal = sqlx::query_scalar(
+        "SELECT SUM(amount) FROM sale_discount WHERE sale_id = $1"
+    ).bind(sale_id).fetch_one(&pool).await.unwrap();
+    assert_eq!(banked, discount_total, "every discount taken is accounted for by an audit row");
+
+    let bill_only: Decimal = sqlx::query_scalar(
+        "SELECT SUM(amount) FROM sale_discount WHERE sale_id = $1 AND scope = 'bill'"
+    ).bind(sale_id).fetch_one(&pool).await.unwrap();
+    assert_eq!(bill_only, "90.00".parse().unwrap());
+
+    // The FK ordering `clear_sale_lines` exists to respect: discounts point at
+    // lines, so dropping the lines first would fail. Held sales are re-written
+    // this way on every checkout.
+    let mut tx = pool.begin().await.unwrap();
+    sqlx::query("DELETE FROM sale_discount WHERE sale_id = $1").bind(sale_id).execute(&mut *tx).await.unwrap();
+    sqlx::query("DELETE FROM sale_line WHERE sale_id = $1").bind(sale_id).execute(&mut *tx).await.unwrap();
+    tx.commit().await.unwrap();
+
+    pool.close().await;
+    server.stop().unwrap();
+    let _ = std::fs::remove_dir_all(&root);
+}

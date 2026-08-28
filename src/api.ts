@@ -46,12 +46,16 @@ export type ProductDetail = Product & {
   price_tiers: PriceTier[];
 };
 
+/// The backend recomputes the amount from `kind` and `value`; the client never
+/// sends a money figure for a discount.
+export type DiscountIn = { kind: "percent" | "fixed"; value: string };
+
 export type SaleLineIn = {
   product_id: number;
   unit_id: number;
   quantity: string;
   unit_price: string;
-  discount_amount: string;
+  discount: DiscountIn | null;
 };
 
 export type PaymentIn = { method: string; amount: string };
@@ -61,18 +65,28 @@ export type CheckoutInput = {
   customer_id: number | null;
   lines: SaleLineIn[];
   payments: PaymentIn[];
-  discount_total: string;
+  bill_discount: DiscountIn | null;
 };
 
 export type SaleSummary = {
   id: number;
   invoice_number: string | null;
+  subtotal: string;
+  discount_total: string;
   grand_total: string;
   balance_due: string;
 };
 
-export type ReceiptLine = { name: string; qty: string; price: string };
-export type ReceiptData = { invoice_number: string; completed_at: string; lines: ReceiptLine[] };
+export type ReceiptLine = { name: string; qty: string; price: string; discount_amount: string };
+export type ReceiptData = {
+  invoice_number: string;
+  completed_at: string;
+  lines: ReceiptLine[];
+  subtotal: string;
+  discount_total: string;
+  bill_discount: string;
+  grand_total: string;
+};
 
 export type Supplier = {
   id: number;
@@ -190,8 +204,8 @@ export const api = {
     invoke<void>("record_purchase_payment", { purchaseId, amount, method }),
 
   completeSale: (input: CheckoutInput) => invoke<SaleSummary>("complete_sale", { input }),
-  holdSale: (customerId: number | null, lines: SaleLineIn[]) =>
-    invoke<number>("hold_sale", { customerId, lines }),
+  holdSale: (customerId: number | null, lines: SaleLineIn[], billDiscount: DiscountIn | null) =>
+    invoke<number>("hold_sale", { customerId, lines, billDiscount }),
   listHeldSales: () =>
     invoke<{ id: number; created_at: string; customer_id: number | null; customer_name: string | null; line_count: number; subtotal: string }[]>(
       "list_held_sales"
