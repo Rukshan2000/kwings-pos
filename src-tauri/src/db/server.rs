@@ -406,11 +406,32 @@ fn binary_version(pg_root: &Path) -> Result<String, DbError> {
     no_window(&mut cmd);
 
     let out = cmd.output().map_err(DbError::Spawn)?;
+
+    // Without this, a `postgres.exe` that fails to launch at all (a missing
+    // runtime DLL beside it, a broken extraction) just yields empty stdout and
+    // gets reported as an unhelpful "could not read the version" — the actual
+    // reason Windows gives is in the exit status and stderr.
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        let detail = if stderr.is_empty() {
+            "no error output".to_string()
+        } else {
+            stderr
+        };
+        return Err(DbError::InitDb(format!(
+            "`{} --version` failed ({}): {detail}",
+            paths::exe(pg_root, "postgres").display(),
+            out.status,
+        )));
+    }
+
     let text = String::from_utf8_lossy(&out.stdout);
-    text.split_whitespace()
-        .last()
-        .map(|v| v.to_string())
-        .ok_or_else(|| DbError::InitDb("could not read postgres --version".into()))
+    text.split_whitespace().last().map(|v| v.to_string()).ok_or_else(|| {
+        DbError::InitDb(format!(
+            "`{} --version` printed nothing",
+            paths::exe(pg_root, "postgres").display(),
+        ))
+    })
 }
 
 /// Keep console windows from flashing up in front of the cashier.

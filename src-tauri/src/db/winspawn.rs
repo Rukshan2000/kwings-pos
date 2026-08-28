@@ -349,10 +349,11 @@ impl Drop for RestrictedProcess {
 
 /// Launches `exe args...` under a freshly restricted copy of this process's
 /// token (Administrators disabled, all privileges dropped), with `cwd` as its
-/// working directory and stdout/stderr redirected to `log`. Stdin is given a
-/// null handle — none of `initdb`/`postgres` read from it at startup, and the
-/// alternative (wiring up a real console/NUL handle) is complexity this app
-/// has no use for.
+/// working directory and stdout/stderr redirected to `log`. Stdin is opened on
+/// the `NUL` device: `STARTF_USESTDHANDLES` requires all three handles to be
+/// valid, and a null stdin is not merely "unused" — it breaks any child that
+/// duplicates its own standard handles, which is how the CRT's `popen` (used
+/// by Postgres's `pipe_read_line`) spawns its subprocess.
 pub fn spawn_restricted(
     exe: &Path,
     args: &[String],
@@ -361,6 +362,8 @@ pub fn spawn_restricted(
 ) -> Result<RestrictedProcess, DbError> {
     let token = make_restricted_token()?;
     let log_handle = make_inheritable(log)?;
+    let nul = File::open("NUL").map_err(DbError::Spawn)?;
+    let nul_handle = make_inheritable(&nul)?;
 
     let mut cmdline = to_wide(&build_command_line(&exe.display().to_string(), args));
     let mut cwd_wide = to_wide(&cwd.display().to_string());
@@ -375,7 +378,7 @@ pub fn spawn_restricted(
     startup.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
     startup.lpDesktop = PWSTR(desktop_wide.as_mut_ptr());
     startup.dwFlags = STARTF_USESTDHANDLES;
-    startup.hStdInput = HANDLE::default();
+    startup.hStdInput = nul_handle;
     startup.hStdOutput = log_handle;
     startup.hStdError = log_handle;
 
