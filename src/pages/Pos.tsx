@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from "react";
 import { api, DiscountIn, Product } from "../api";
 import Receipt from "../components/Receipt";
 import DiscountControl from "../components/DiscountControl";
+import PaymentDialog, { Payment } from "../components/PaymentDialog";
 import { printBill } from "../printer";
 import { SHOP } from "../shop";
 import {
@@ -20,7 +21,6 @@ import {
 } from "../types";
 
 type CartLine = Item & { productId: number; unitId: number };
-type Payment = { method: string; amount: string };
 
 /** The wire form of a discount: kind plus the raw typed value, never an amount. */
 const toDiscountIn = (d?: Discount): DiscountIn | null =>
@@ -100,10 +100,6 @@ export default function Pos() {
   const savings = useMemo(() => discountTotal(cart, billDiscount), [cart, billDiscount]);
   const billOff = useMemo(() => billDiscountAmount(cart, billDiscount), [cart, billDiscount]);
   const toPay = useMemo(() => grandTotal(cart, billDiscount), [cart, billDiscount]);
-  const paidTotal = useMemo(
-    () => payments.reduce((s, p) => s + (Number(p.amount) || 0), 0),
-    [payments]
-  );
 
   const addProduct = (p: Product) => {
     setCart((prev) => {
@@ -532,54 +528,7 @@ export default function Pos() {
               </button>
             )}
           </div>
-
-          {showPayment && (
-            <div className="flex justify-between text-slate-500">
-              <span>Paid</span>
-              <span>
-                {lkr(paidTotal)}
-                {paidTotal < toPay && <span className="text-amber-600"> · credit {lkr(toPay - paidTotal)}</span>}
-              </span>
-            </div>
-          )}
         </div>
-
-        {showPayment && (
-          <div className="space-y-2 border-t border-slate-200 px-5 py-4">
-            {payments.map((p, i) => (
-              <div className="grid grid-cols-2 gap-2" key={i}>
-                <select
-                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-800"
-                  value={p.method}
-                  onChange={(e) =>
-                    setPayments((prev) => prev.map((x, j) => (j === i ? { ...x, method: e.target.value } : x)))
-                  }
-                >
-                  <option value="cash">Cash</option>
-                  <option value="card">Card</option>
-                  <option value="bank_transfer">Bank transfer</option>
-                  <option value="credit">Credit</option>
-                </select>
-                <input
-                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-800 placeholder:text-slate-400"
-                  type="number" step="0.01" min="0"
-                  placeholder="Amount"
-                  value={p.amount}
-                  onChange={(e) =>
-                    setPayments((prev) => prev.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)))
-                  }
-                />
-              </div>
-            ))}
-            <button
-              type="button"
-              className="text-xs text-slate-500 hover:text-brand-700"
-              onClick={() => setPayments((prev) => [...prev, { method: "cash", amount: "" }])}
-            >
-              + Split payment
-            </button>
-          </div>
-        )}
 
         <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-5 py-4">
           <span className="text-sm font-medium text-slate-600">To pay</span>
@@ -601,29 +550,28 @@ export default function Pos() {
           >
             Hold
           </button>
-          {!showPayment ? (
-            <button
-              type="button"
-              className="btn-primary flex-1 py-3"
-              disabled={!cart.length}
-              onClick={() => setShowPayment(true)}
-            >
-              Continue
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn-primary flex-1 py-3"
-              disabled={!cart.length || checkout.isPending || checkingOut}
-              onClick={() => checkout.mutate()}
-            >
-              {checkout.isPending || checkingOut ? "Processing…" : "Complete Sale"}
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn-primary flex-1 py-3"
+            disabled={!cart.length || checkout.isPending || checkingOut}
+            onClick={() => setShowPayment(true)}
+          >
+            {checkout.isPending || checkingOut ? "Processing…" : "Charge"}
+          </button>
         </div>
       </div>
 
       </div>
+
+      <PaymentDialog
+        open={showPayment}
+        total={toPay}
+        payments={payments}
+        onChange={setPayments}
+        onClose={() => setShowPayment(false)}
+        onConfirm={() => checkout.mutate()}
+        pending={checkout.isPending || checkingOut}
+      />
 
       <div className="preview hidden print:block">
         <Receipt bill={previewBill} />

@@ -1,0 +1,193 @@
+import { useEffect, useRef } from "react";
+import { lkr } from "../types";
+
+export type Payment = { method: string; amount: string };
+
+const METHODS = [
+  { value: "cash", label: "Cash" },
+  { value: "card", label: "Card" },
+  { value: "bank_transfer", label: "Bank transfer" },
+  { value: "credit", label: "Credit" },
+];
+
+/**
+ * Payment entry, in a dialog rather than inline in the order card.
+ *
+ * Split payments grow the form by a row each, which on the till pushed the cart
+ * out of view exactly when the cashier wants to check it against what is on the
+ * counter. Taking payment is also its own step — the cart is settled by the time
+ * this opens — so it gets the screen to itself and the card keeps its space.
+ */
+export default function PaymentDialog({
+  open,
+  total,
+  payments,
+  onChange,
+  onClose,
+  onConfirm,
+  pending,
+}: {
+  open: boolean;
+  total: number;
+  payments: Payment[];
+  onChange: (p: Payment[]) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+  pending: boolean;
+}) {
+  const firstAmount = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) firstAmount.current?.focus();
+  }, [open]);
+
+  // Escape closes, but never mid-checkout: the sale is already being written.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !pending) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, pending, onClose]);
+
+  if (!open) return null;
+
+  const paid = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const outstanding = Math.max(total - paid, 0);
+  const change = Math.max(paid - total, 0);
+
+  const set = (i: number, patch: Partial<Payment>) =>
+    onChange(payments.map((p, j) => (j === i ? { ...p, ...patch } : p)));
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Take payment"
+      onMouseDown={(e) => {
+        // Only a click that both starts and ends on the backdrop closes it —
+        // a drag that happens to end here should not discard the form.
+        if (e.target === e.currentTarget && !pending) onClose();
+      }}
+    >
+      <div className="card w-full max-w-md p-5">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold text-slate-700">Take payment</h2>
+          <button
+            type="button"
+            className="text-xs text-slate-400 hover:text-slate-700 disabled:opacity-40"
+            onClick={onClose}
+            disabled={pending}
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3">
+          <div className="flex items-baseline justify-between">
+            <span className="text-sm text-slate-500">To pay</span>
+            <span className="text-2xl font-semibold text-slate-900">{lkr(total)}</span>
+          </div>
+        </div>
+
+        <form
+          className="mt-4 space-y-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!pending) onConfirm();
+          }}
+        >
+          {payments.map((p, i) => (
+            <div className="flex gap-2" key={i}>
+              <select
+                className="w-40 rounded-xl border border-slate-200 bg-white px-2.5 py-2.5 text-sm text-slate-800"
+                value={p.method}
+                onChange={(e) => set(i, { method: e.target.value })}
+                aria-label={`Payment ${i + 1} method`}
+              >
+                {METHODS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                ref={i === 0 ? firstAmount : undefined}
+                className="field"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Amount"
+                aria-label={`Payment ${i + 1} amount`}
+                value={p.amount}
+                onChange={(e) => set(i, { amount: e.target.value })}
+              />
+              {payments.length > 1 && (
+                <button
+                  type="button"
+                  className="px-1.5 text-slate-400 hover:text-amber-600"
+                  onClick={() => onChange(payments.filter((_, j) => j !== i))}
+                  aria-label={`Remove payment ${i + 1}`}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+
+          <div className="flex items-center justify-between pt-1">
+            <button
+              type="button"
+              className="text-xs text-slate-500 hover:text-brand-700"
+              onClick={() => onChange([...payments, { method: "cash", amount: "" }])}
+            >
+              + Split payment
+            </button>
+            {outstanding > 0 && (
+              <button
+                type="button"
+                className="text-xs text-slate-500 hover:text-brand-700"
+                // Fills the last row with what is still owed — the common case
+                // is one method covering the whole bill.
+                onClick={() =>
+                  set(payments.length - 1, {
+                    amount: (
+                      (Number(payments[payments.length - 1].amount) || 0) + outstanding
+                    ).toFixed(2),
+                  })
+                }
+              >
+                Pay the rest
+              </button>
+            )}
+          </div>
+
+          <dl className="space-y-1 border-t border-slate-200 pt-3 text-sm">
+            <div className="flex justify-between text-slate-500">
+              <dt>Paid</dt>
+              <dd>{lkr(paid)}</dd>
+            </div>
+            {outstanding > 0 && (
+              <div className="flex justify-between font-medium text-amber-600">
+                <dt>On credit</dt>
+                <dd>{lkr(outstanding)}</dd>
+              </div>
+            )}
+            {change > 0 && (
+              <div className="flex justify-between font-medium text-emerald-600">
+                <dt>Change</dt>
+                <dd>{lkr(change)}</dd>
+              </div>
+            )}
+          </dl>
+
+          <button type="submit" className="btn-primary mt-2 w-full py-3" disabled={pending}>
+            {pending ? "Processing…" : "Complete Sale"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
