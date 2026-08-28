@@ -25,6 +25,7 @@ export default function Products() {
   const [form, setForm] = useState<Form>(emptyForm);
   const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [confirmArchive, setConfirmArchive] = useState<number | null>(null);
 
   const products = useQuery({
     queryKey: ["products", search],
@@ -63,7 +64,11 @@ export default function Products() {
 
   const archive = useMutation({
     mutationFn: (id: number) => api.archiveProduct(id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setConfirmArchive(null);
+      invalidate();
+    },
+    onError: (e) => setError(e instanceof Error ? e.message : String(e)),
   });
 
   const startEdit = (p: Product) => {
@@ -139,16 +144,46 @@ export default function Products() {
                       >
                         Edit
                       </button>
-                      <button
-                        type="button"
-                        className="btn-danger !py-1 !px-2.5 text-xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm(`Archive "${p.name}"?`)) archive.mutate(p.id);
-                        }}
-                      >
-                        Archive
-                      </button>
+                      {/* An in-app confirm, not window.confirm(): the webview
+                          this runs in does not implement the native dialog, so
+                          confirm() returned false immediately and the button
+                          did nothing at all. */}
+                      {confirmArchive === p.id ? (
+                        <>
+                          <button
+                            type="button"
+                            className="btn-danger !py-1 !px-2.5 text-xs"
+                            disabled={archive.isPending}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              archive.mutate(p.id);
+                            }}
+                          >
+                            {archive.isPending ? "Archiving…" : "Confirm"}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-secondary !py-1 !px-2.5 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmArchive(null);
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn-danger !py-1 !px-2.5 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmArchive(p.id);
+                          }}
+                        >
+                          Archive
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
