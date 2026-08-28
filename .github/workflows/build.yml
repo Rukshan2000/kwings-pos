@@ -188,14 +188,41 @@ jobs:
           if (-not (Get-Process postgres -EA SilentlyContinue)) { throw "postgres.exe never started" }
           Write-Host "postgres is running"
 
-          # Migrations must have been applied by now.
+          # PG_VERSION is written by initdb, which finishes well before the server
+          # is listening and before migrations have run, so the marker above only
+          # proves the cluster exists. Wait for the port to actually answer.
           $cfg = Get-Content "$env:ProgramData\GreenPlusPOS\config.json" | ConvertFrom-Json
           $env:PGPASSWORD = $cfg.password
-          $psql = Join-Path $env:INSTALL_DIR "resources\pgsql\bin\psql.exe"
-          $rows = & $psql -h 127.0.0.1 -p $cfg.port -U pos_admin -d pos -tAqc `
-            "SELECT count(*) FROM _sqlx_migrations WHERE success"
-          if ([int]$rows -lt 1) { throw "no migrations were applied" }
-          Write-Host "migrations applied: $rows"
+          $bin = Join-Path $env:INSTALL_DIR "resources\pgsql\bin"
+          $psql = Join-Path $bin "psql.exe"
+
+          $deadline = (Get-Date).AddSeconds(120)
+          do {
+            & (Join-Path $bin "pg_isready.exe") -h 127.0.0.1 -p $cfg.port -U pos_admin | Out-Null
+            $ready = $LASTEXITCODE -eq 0
+            if (-not $ready) { Start-Sleep -Seconds 2 }
+          } while (-not $ready -and (Get-Date) -lt $deadline)
+          if (-not $ready) {
+            Get-Content "$env:ProgramData\GreenPlusPOS\postgres.log" -Tail 40 -EA SilentlyContinue
+            throw "server never accepted connections on port $($cfg.port)"
+          }
+          Write-Host "server is accepting connections on port $($cfg.port)"
+
+          # Migrations run once the app has its connection pool, so they land a
+          # little after the server opens the port.
+          $deadline = (Get-Date).AddSeconds(120)
+          do {
+            $rows = & $psql -h 127.0.0.1 -p $cfg.port -U pos_admin -d pos -tAqc `
+              "SELECT count(*) FROM _sqlx_migrations WHERE success" 2>$null
+            $applied = 0
+            [int]::TryParse(($rows | Out-String).Trim(), [ref]$applied) | Out-Null
+            if ($applied -lt 1) { Start-Sleep -Seconds 2 }
+          } while ($applied -lt 1 -and (Get-Date) -lt $deadline)
+          if ($applied -lt 1) {
+            Get-Content "$env:ProgramData\GreenPlusPOS\postgres.log" -Tail 40 -EA SilentlyContinue
+            throw "no migrations were applied within 120s"
+          }
+          Write-Host "migrations applied: $applied"
 
           # pg_dump from the bundled binaries produces a real backup.
           $dump = "$env:TEMP\smoke.dump"
