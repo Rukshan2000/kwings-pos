@@ -19,6 +19,9 @@ export default function LineDialog({
   selected,
   priceFor,
   onPick,
+  priceChoices,
+  selectedPrice,
+  onPriceChoice,
   discount,
   discountBase,
   onDiscount,
@@ -31,6 +34,11 @@ export default function LineDialog({
   /** What one of that unit costs at the line's current quantity. */
   priceFor: (unit: SellableUnit) => number;
   onPick: (unitId: number) => void;
+  /** Present only when the product sells at more than one price — absent for
+      every ordinary product, and the section does not render. */
+  priceChoices?: { label: string; price: number }[];
+  selectedPrice?: number;
+  onPriceChoice?: (price: number) => void;
   discount?: Discount;
   /** The line's gross, which the discount comes off and is capped at. */
   discountBase: number;
@@ -96,6 +104,28 @@ export default function LineDialog({
                   </button>
                 );
               })}
+            </div>
+          </>
+        )}
+
+        {priceChoices && priceChoices.length > 1 && (
+          <>
+            <p className="mt-3 text-xs font-medium text-slate-500">Price</p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {priceChoices.map((c) => (
+                <button
+                  key={c.label}
+                  type="button"
+                  onClick={() => onPriceChoice?.(c.price)}
+                  className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                    selectedPrice === c.price
+                      ? "border-brand-400 bg-brand-50 text-brand-700"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {c.label} · {lkr(c.price)}
+                </button>
+              ))}
             </div>
           </>
         )}

@@ -25,6 +25,8 @@ export type Product = {
   /** Offered as a one-tap button on the till, beside Hold. */
   quick_add: boolean;
   sort_order: number;
+  /** Whether adding this to the till will ask which of several prices to charge. */
+  has_price_options: boolean;
 };
 
 export type ProductUnit = {
@@ -44,9 +46,20 @@ export type PriceTier = {
   price: string;
 };
 
+/// A price a cashier can choose instead of `selling_price` — market chilli
+/// powder at 100 today, 110 tomorrow, both for the same base-unit line. Picked
+/// by a person at the till, not applied automatically like a `PriceTier`.
+export type PriceOption = {
+  id: number;
+  label: string;
+  price: string;
+  sort_order: number;
+};
+
 export type ProductDetail = Product & {
   units: ProductUnit[];
   price_tiers: PriceTier[];
+  price_options: PriceOption[];
 };
 
 /// The backend recomputes the amount from `kind` and `value`; the client never
@@ -202,6 +215,14 @@ export const api = {
     productId: number,
     input: { unit_id: number; kind: string; min_qty: string; price: string }
   ) => invoke<PriceTier[]>("set_price_tier", { productId, input }),
+
+  setPriceOption: (
+    productId: number,
+    id: number | null,
+    input: { label: string; price: string; sort_order: number }
+  ) => invoke<PriceOption[]>("set_price_option", { productId, id, input }),
+  deletePriceOption: (productId: number, id: number) =>
+    invoke<PriceOption[]>("delete_price_option", { productId, id }),
 
   stockLevels: (lowStockOnly: boolean) =>
     invoke<StockLevel[]>("stock_levels", { lowStockOnly }),

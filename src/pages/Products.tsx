@@ -420,6 +420,8 @@ function ProductExtras({
   const [tierUnitId, setTierUnitId] = useState("");
   const [tierMinQty, setTierMinQty] = useState("");
   const [tierPrice, setTierPrice] = useState("");
+  const [optionLabel, setOptionLabel] = useState("");
+  const [optionPrice, setOptionPrice] = useState("");
 
   return (
     <div className="card p-6">
@@ -512,6 +514,66 @@ function ProductExtras({
           onChange={(e) => setTierPrice(e.target.value)}
         />
         <button type="submit" className="btn-secondary col-span-2">Add tier</button>
+      </form>
+
+      {/* Alternate prices for the same line, picked by the cashier at checkout
+          rather than applied by a rule — a tier fires on quantity, this fires
+          on whatever the market did today. Sale price is unaffected until this
+          list has a second entry: one price is still just the product's own. */}
+      <h3 className="label mb-2 mt-5">Price options</h3>
+      <p className="mb-2 text-xs text-slate-400">
+        Shown as a choice on the till when it sells at more than one price — e.g. today's market
+        rate alongside the regular price.
+      </p>
+      <ul className="mb-3 space-y-1 text-sm text-slate-600">
+        {detail.price_options.map((o) => (
+          <li key={o.id} className="flex items-center justify-between gap-2">
+            <span>
+              {o.label} — {o.price}
+            </span>
+            <button
+              type="button"
+              className="text-xs text-slate-400 hover:text-amber-600"
+              onClick={async () => {
+                await api.deletePriceOption(detail.id, o.id);
+                onChange();
+              }}
+            >
+              Remove
+            </button>
+          </li>
+        ))}
+        {detail.price_options.length === 0 && <li className="text-slate-400">None yet.</li>}
+      </ul>
+      <form
+        className="grid grid-cols-[1fr_auto_auto] gap-2"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!optionLabel.trim() || !optionPrice) return;
+          await api.setPriceOption(detail.id, null, {
+            label: optionLabel.trim(),
+            price: optionPrice,
+            sort_order: detail.price_options.length,
+          });
+          setOptionLabel("");
+          setOptionPrice("");
+          onChange();
+        }}
+      >
+        <input
+          className="field"
+          placeholder="Label, e.g. Market rate"
+          value={optionLabel}
+          onChange={(e) => setOptionLabel(e.target.value)}
+        />
+        <input
+          className="field w-28"
+          type="number" step="0.01" min="0"
+          placeholder="Price"
+          value={optionPrice}
+          onChange={(e) => setOptionPrice(e.target.value)}
+        />
+        <button type="submit" className="btn-secondary">Add</button>
       </form>
     </div>
   );

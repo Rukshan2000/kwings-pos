@@ -5,7 +5,8 @@ import Receipt from "../components/Receipt";
 import DiscountControl from "../components/DiscountControl";
 import PaymentDialog, { Payment } from "../components/PaymentDialog";
 import LineDialog from "../components/LineDialog";
-import { SellableUnit, TierKind, pricedByTier, sellableUnits, unitPrice } from "../pricing";
+import PricePickerDialog from "../components/PricePickerDialog";
+import { SellableUnit, TierKind, priceChoices, pricedByTier, sellableUnits, unitPrice } from "../pricing";
 import { printBill } from "../printer";
 import { SHOP } from "../shop";
 import {
@@ -29,6 +30,9 @@ type CartLine = Item & {
       quantity or unit change needs no round trip. */
   detail: ProductDetail;
   units: SellableUnit[];
+  /** Set once the cashier has picked a price from more than one on offer — see
+      `unitPrice`'s `manualBasePrice`. Absent for every ordinary product. */
+  manualBasePrice?: number;
 };
 
 /** The wire form of a discount: kind plus the raw typed value, never an amount. */
@@ -63,6 +67,13 @@ export default function Pos() {
   const [tierKind, setTierKind] = useState<TierKind>("retail");
   // Which cart line's options dialog is open, if any.
   const [lineOptions, setLineOptions] = useState<string | null>(null);
+  // A product fetched and waiting on the cashier to pick a price before it can
+  // be added — set only when the product actually has more than one.
+  const [pricePick, setPricePick] = useState<{
+    product: Product;
+    detail: ProductDetail;
+    units: SellableUnit[];
+  } | null>(null);
   const [payments, setPayments] = useState<Payment[]>([{ method: "cash", amount: "" }]);
   const [heldSaleId, setHeldSaleId] = useState<number | null>(null);
   const [showHeld, setShowHeld] = useState(false);
@@ -128,47 +139,65 @@ export default function Pos() {
   const billOff = useMemo(() => billDiscountAmount(cart, billDiscount), [cart, billDiscount]);
   const toPay = useMemo(() => grandTotal(cart, billDiscount), [cart, billDiscount]);
 
-  /// Re-prices a line from its own tiers. Called on every quantity or unit
-  /// change, because a quantity break that stops applying has to stop applying.
+  /// Re-prices a line from its own tiers, or its manually chosen price if it
+  /// has one. Called on every quantity or unit change, because a quantity
+  /// break that stops applying has to stop applying.
   const repriced = (line: CartLine, qty: number, unit: SellableUnit, kind: TierKind): CartLine => ({
     ...line,
     qty,
     unitId: unit.unitId,
-    price: unitPrice(line.detail, unit, qty, kind),
+    price: unitPrice(line.detail, unit, qty, kind, line.manualBasePrice),
   });
 
+  const addLine = (p: Product, detail: ProductDetail, units: SellableUnit[], manualBasePrice?: number) => {
+    setCart((prev) => {
+      const existing = prev.find((l) => l.productId === p.id);
+      if (existing) {
+        const unit = existing.units.find((u) => u.unitId === existing.unitId) ?? existing.units[0];
+        return prev.map((l) => (l.id === existing.id ? repriced(l, l.qty + 1, unit, tierKind) : l));
+      }
+      return [
+        ...prev,
+        {
+          id: uid(),
+          productId: p.id,
+          unitId: units[0].unitId,
+          name: p.name,
+          qty: 1,
+          price: unitPrice(detail, units[0], 1, tierKind, manualBasePrice),
+          detail,
+          units,
+          manualBasePrice,
+        },
+      ];
+    });
+  };
+
   const addProduct = async (p: Product) => {
+    // Once it is already in the cart, tapping the tile again just bumps the
+    // quantity at whatever price that line is already using — re-prompting on
+    // every tap would make repeat items unusable.
     const existing = cart.find((l) => l.productId === p.id);
     if (existing) {
-      const unit = existing.units.find((u) => u.unitId === existing.unitId) ?? existing.units[0];
-      setCart((prev) =>
-        prev.map((l) => (l.id === existing.id ? repriced(l, l.qty + 1, unit, tierKind) : l))
-      );
+      addLine(p, existing.detail, existing.units, existing.manualBasePrice);
       return;
     }
 
-    // The grid's product rows carry no units or tiers, so the first add of a
-    // product fetches them. Cached by react-query, so a second add of the same
-    // product does not hit the database again.
+    // The grid's product rows carry no units, tiers or price options, so the
+    // first add of a product fetches them. Cached by react-query, so a second
+    // add of the same product does not hit the database again.
     const detail = await qc.fetchQuery({
       queryKey: ["product", p.id],
       queryFn: () => api.product(p.id),
     });
     const units = sellableUnits(detail);
+    const choices = priceChoices(detail);
 
-    setCart((prev) => [
-      ...prev,
-      {
-        id: uid(),
-        productId: p.id,
-        unitId: units[0].unitId,
-        name: p.name,
-        qty: 1,
-        price: unitPrice(detail, units[0], 1, tierKind),
-        detail,
-        units,
-      },
-    ]);
+    if (choices.length > 1) {
+      setPricePick({ product: p, detail, units });
+      return;
+    }
+    addLine(p, detail, units);
   };
 
   // Barcode-scanner wedge: a scan arrives as rapid keystrokes ending in Enter.
@@ -494,6 +523,14 @@ export default function Pos() {
                     {inCart.qty}
                   </span>
                 )}
+                {/* Warns before the popup does — several prices exist and
+                    adding this will ask which one. */}
+                {p.has_price_options && !inCart && (
+                  <span
+                    className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-amber-500"
+                    title="Sells at more than one price"
+                  />
+                )}
 
                 {/* Two lines of name, then price and stock share the last
                     line — the whole card is three lines tall. */}
@@ -575,12 +612,18 @@ export default function Pos() {
                     <p className="truncate text-sm font-medium text-slate-800">{l.name}</p>
                     <p className="text-xs text-slate-500">
                       {lkr(l.price)} per {l.units.find((u) => u.unitId === l.unitId)?.code}
-                      {pricedByTier(
-                        l.detail,
-                        l.units.find((u) => u.unitId === l.unitId) ?? l.units[0],
-                        l.qty,
-                        tierKind
-                      ) && <span className="ml-1 text-brand-600">· {tierKind} price</span>}
+                      {l.manualBasePrice !== undefined ? (
+                        <span className="ml-1 text-amber-600">
+                          · {priceChoices(l.detail).find((c) => c.price === l.manualBasePrice)?.label ?? "chosen price"}
+                        </span>
+                      ) : (
+                        pricedByTier(
+                          l.detail,
+                          l.units.find((u) => u.unitId === l.unitId) ?? l.units[0],
+                          l.qty,
+                          tierKind
+                        ) && <span className="ml-1 text-brand-600">· {tierKind} price</span>
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -731,17 +774,47 @@ export default function Pos() {
 
       </div>
 
+      <PricePickerDialog
+        open={pricePick !== null}
+        productName={pricePick?.product.name ?? ""}
+        choices={pricePick ? priceChoices(pricePick.detail) : []}
+        onPick={(price) => {
+          if (!pricePick) return;
+          const base = priceChoices(pricePick.detail)[0].price;
+          addLine(pricePick.product, pricePick.detail, pricePick.units, price === base ? undefined : price);
+          setPricePick(null);
+        }}
+        onClose={() => setPricePick(null)}
+      />
+
       {(() => {
         const line = cart.find((l) => l.id === lineOptions);
         if (!line) return null;
+        const choices = priceChoices(line.detail);
         return (
           <LineDialog
             open
             productName={line.name}
             units={line.units}
             selected={line.unitId}
-            priceFor={(u) => unitPrice(line.detail, u, line.qty, tierKind)}
+            priceFor={(u) => unitPrice(line.detail, u, line.qty, tierKind, line.manualBasePrice)}
             onPick={(unitId) => setLineUnit(line.id, unitId)}
+            priceChoices={choices.length > 1 ? choices : undefined}
+            selectedPrice={line.manualBasePrice ?? choices[0].price}
+            onPriceChoice={(price) =>
+              setCart((prev) =>
+                prev.map((l) =>
+                  l.id === line.id
+                    ? repriced(
+                        { ...l, manualBasePrice: price === choices[0].price ? undefined : price },
+                        l.qty,
+                        l.units.find((u) => u.unitId === l.unitId) ?? l.units[0],
+                        tierKind
+                      )
+                    : l
+                )
+              )
+            }
             discount={line.discount}
             discountBase={line.qty * line.price}
             onDiscount={(d) => setLineDiscount(line.id, d)}

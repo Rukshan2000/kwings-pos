@@ -1,4 +1,4 @@
-import { PriceTier, ProductDetail, ProductUnit } from "./api";
+import { PriceOption, PriceTier, ProductDetail, ProductUnit } from "./api";
 
 export type TierKind = "retail" | "wholesale";
 
@@ -30,6 +30,22 @@ export function sellableUnits(detail: ProductDetail): SellableUnit[] {
 }
 
 /**
+ * The prices a cashier can choose between for this product, in the base unit —
+ * the product's own `selling_price` first, then each `price_option` in the
+ * shop's own order. A product with no options yields just the one, so calling
+ * code can treat "one price" and "several" the same way rather than branching.
+ */
+export function priceChoices(detail: ProductDetail): { label: string; price: number }[] {
+  return [
+    { label: "Regular", price: Number(detail.selling_price) },
+    ...detail.price_options
+      .slice()
+      .sort((a: PriceOption, b: PriceOption) => a.sort_order - b.sort_order)
+      .map((o) => ({ label: o.label, price: Number(o.price) })),
+  ];
+}
+
+/**
  * What one `unit` costs at this quantity.
  *
  * Price tiers are quantity breaks: a row says "at 10 or more of this unit, the
@@ -47,8 +63,15 @@ export function unitPrice(
   detail: ProductDetail,
   unit: SellableUnit,
   qty: number,
-  kind: TierKind
+  kind: TierKind,
+  /** A price the cashier picked from `priceChoices`, in the base unit. Set,
+      this stands in for `selling_price` and skips tiers — a manually chosen
+      price is a deliberate override, not something a quantity break should
+      then second-guess. */
+  manualBasePrice?: number
 ): number {
+  if (manualBasePrice !== undefined) return manualBasePrice * unit.factor;
+
   const applicable = (k: TierKind) =>
     detail.price_tiers
       .filter((t: PriceTier) => t.unit_id === unit.unitId && t.kind === k && Number(t.min_qty) <= qty)

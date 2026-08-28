@@ -49,6 +49,18 @@ pub struct PriceTier {
     pub price: Decimal,
 }
 
+/// A price a cashier can choose instead of `product.selling_price` — market
+/// chilli powder at 100 today, 110 tomorrow, both for the same base-unit line.
+/// Not a `PriceTier`: a tier applies itself by quantity, this is picked by a
+/// person because there is no rule that decides it.
+#[derive(Serialize, FromRow)]
+pub struct PriceOption {
+    pub id: i64,
+    pub label: String,
+    pub price: Decimal,
+    pub sort_order: i32,
+}
+
 #[derive(Serialize, FromRow)]
 pub struct Product {
     pub id: i64,
@@ -72,6 +84,10 @@ pub struct Product {
     pub quick_add: bool,
     /// Orders the quick-add buttons; ties fall back to name.
     pub sort_order: i32,
+    /// Whether this product has more than its one regular price — the till
+    /// grid uses this to hint that adding it will ask which price to charge,
+    /// rather than the cashier discovering that from a popup with no warning.
+    pub has_price_options: bool,
 }
 
 #[derive(Serialize)]
@@ -80,6 +96,7 @@ pub struct ProductDetail {
     pub product: Product,
     pub units: Vec<ProductUnit>,
     pub price_tiers: Vec<PriceTier>,
+    pub price_options: Vec<PriceOption>,
 }
 
 #[derive(Deserialize)]
@@ -114,13 +131,21 @@ pub struct PriceTierInput {
     pub price: Decimal,
 }
 
+#[derive(Deserialize)]
+pub struct PriceOptionInput {
+    pub label: String,
+    pub price: Decimal,
+    pub sort_order: i32,
+}
+
 const PRODUCT_SELECT: &str = "
     SELECT p.id, p.sku, p.barcode, p.name,
            p.category_id, c.name AS category_name,
            p.brand_id, b.name AS brand_name,
            p.base_unit_id, u.code AS base_unit_code,
            p.cost_price, p.selling_price, p.low_stock_at, p.active,
-           p.quick_add, p.sort_order
+           p.quick_add, p.sort_order,
+           EXISTS (SELECT 1 FROM product_price_option o WHERE o.product_id = p.id) AS has_price_options
     FROM product p
     LEFT JOIN category c ON c.id = p.category_id
     LEFT JOIN brand b ON b.id = p.brand_id
@@ -152,6 +177,16 @@ async fn fetch_price_tiers(pool: &PgPool, product_id: i64) -> Result<Vec<PriceTi
         "SELECT t.id, t.unit_id, u.code AS unit_code, t.kind::text AS kind, t.min_qty, t.price
          FROM product_price_tier t JOIN unit u ON u.id = t.unit_id
          WHERE t.product_id = $1 ORDER BY t.kind, t.min_qty",
+    )
+    .bind(product_id)
+    .fetch_all(pool)
+    .await?)
+}
+
+async fn fetch_price_options(pool: &PgPool, product_id: i64) -> Result<Vec<PriceOption>, DbError> {
+    Ok(sqlx::query_as::<_, PriceOption>(
+        "SELECT id, label, price, sort_order FROM product_price_option
+         WHERE product_id = $1 ORDER BY sort_order, id",
     )
     .bind(product_id)
     .fetch_all(pool)
@@ -300,6 +335,7 @@ pub async fn get_product(
         product: fetch_product(&db.pool, id).await?,
         units: fetch_units(&db.pool, id).await?,
         price_tiers: fetch_price_tiers(&db.pool, id).await?,
+        price_options: fetch_price_options(&db.pool, id).await?,
     })
 }
 
@@ -481,6 +517,70 @@ pub async fn set_price_tier(
     .await?;
 
     Ok(fetch_price_tiers(&db.pool, product_id).await?)
+}
+
+/// Adds or edits a price option — id present means edit, absent means add,
+/// mirroring how `product_unit` and `product_price_tier` rows are managed from
+/// the same product-detail screen.
+#[tauri::command]
+pub async fn set_price_option(
+    state: tauri::State<'_, AppDb>,
+    product_id: i64,
+    id: Option<i64>,
+    input: PriceOptionInput,
+) -> Result<Vec<PriceOption>, DbError> {
+    let guard = state.0.read().await;
+    let db = guard.as_ref().ok_or(DbError::NotReady)?;
+
+    let label = require_name(&input.label, "price option")?;
+
+    match id {
+        Some(id) => {
+            sqlx::query(
+                "UPDATE product_price_option SET label = $1, price = $2, sort_order = $3
+                 WHERE id = $4 AND product_id = $5",
+            )
+            .bind(&label)
+            .bind(input.price)
+            .bind(input.sort_order)
+            .bind(id)
+            .bind(product_id)
+            .execute(&db.pool)
+            .await?;
+        }
+        None => {
+            sqlx::query(
+                "INSERT INTO product_price_option (product_id, label, price, sort_order)
+                 VALUES ($1, $2, $3, $4)",
+            )
+            .bind(product_id)
+            .bind(&label)
+            .bind(input.price)
+            .bind(input.sort_order)
+            .execute(&db.pool)
+            .await?;
+        }
+    }
+
+    Ok(fetch_price_options(&db.pool, product_id).await?)
+}
+
+#[tauri::command]
+pub async fn delete_price_option(
+    state: tauri::State<'_, AppDb>,
+    product_id: i64,
+    id: i64,
+) -> Result<Vec<PriceOption>, DbError> {
+    let guard = state.0.read().await;
+    let db = guard.as_ref().ok_or(DbError::NotReady)?;
+
+    sqlx::query("DELETE FROM product_price_option WHERE id = $1 AND product_id = $2")
+        .bind(id)
+        .bind(product_id)
+        .execute(&db.pool)
+        .await?;
+
+    Ok(fetch_price_options(&db.pool, product_id).await?)
 }
 
 fn non_empty(s: Option<String>) -> Option<String> {

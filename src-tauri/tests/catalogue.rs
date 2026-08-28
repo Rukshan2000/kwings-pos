@@ -231,3 +231,63 @@ async fn an_archived_product_can_be_restored_with_its_history() {
     server.stop().unwrap();
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// Price options are the manual counterpart to a tier: a person picks one at
+/// the moment of sale, because there is no rule — only what the market did
+/// today. `set_price_option` distinguishes add from edit by whether an id was
+/// given; this mirrors that against the table directly.
+#[tokio::test]
+async fn a_product_can_offer_more_than_one_price_to_choose_from() {
+    let root = temp_root("price-options");
+    let (mut server, pool) = migrated_pool(&root).await;
+
+    let pc: i64 = sqlx::query_scalar("SELECT id FROM unit WHERE code = 'pc'")
+        .fetch_one(&pool).await.unwrap();
+    let product_id: i64 = sqlx::query_scalar(
+        "INSERT INTO product (name, base_unit_id, selling_price) VALUES ('Chilli Powder 250g', $1, 100.00) RETURNING id"
+    ).bind(pc).fetch_one(&pool).await.unwrap();
+
+    // A product with no options is unaffected — it still sells at the plain
+    // selling_price, which is the point: this feature has to stay invisible
+    // until the shop actually adds a second price.
+    let none: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM product_price_option WHERE product_id = $1"
+    ).bind(product_id).fetch_one(&pool).await.unwrap();
+    assert_eq!(none, 0);
+
+    for (label, price, order) in [("Regular", "100.00", 1), ("Market rate", "110.00", 2)] {
+        sqlx::query(
+            "INSERT INTO product_price_option (product_id, label, price, sort_order) VALUES ($1, $2, $3::numeric, $4)"
+        ).bind(product_id).bind(label).bind(price).bind(order)
+         .execute(&pool).await.unwrap();
+    }
+
+    let rows: Vec<(String, rust_decimal::Decimal)> = sqlx::query_as(
+        "SELECT label, price FROM product_price_option WHERE product_id = $1 ORDER BY sort_order"
+    ).bind(product_id).fetch_all(&pool).await.unwrap();
+    assert_eq!(
+        rows,
+        vec![
+            ("Regular".to_string(), "100.00".parse().unwrap()),
+            ("Market rate".to_string(), "110.00".parse().unwrap()),
+        ]
+    );
+
+    // Editing today's market rate must not touch the regular price.
+    sqlx::query("UPDATE product_price_option SET price = 115.00 WHERE product_id = $1 AND label = 'Market rate'")
+        .bind(product_id).execute(&pool).await.unwrap();
+    let regular: rust_decimal::Decimal = sqlx::query_scalar(
+        "SELECT price FROM product_price_option WHERE product_id = $1 AND label = 'Regular'"
+    ).bind(product_id).fetch_one(&pool).await.unwrap();
+    assert_eq!(regular, "100.00".parse().unwrap());
+
+    // A negative price is nonsense a market move can never produce.
+    let bad = sqlx::query(
+        "INSERT INTO product_price_option (product_id, label, price) VALUES ($1, 'Broken', -5.00)"
+    ).bind(product_id).execute(&pool).await;
+    assert!(bad.is_err(), "the CHECK constraint rejects a negative price");
+
+    pool.close().await;
+    server.stop().unwrap();
+    let _ = std::fs::remove_dir_all(&root);
+}
