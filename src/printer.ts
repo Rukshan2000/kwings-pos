@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import { buildReceipt, rasterize } from "./escpos";
-import { SHOP } from "./shop";
+import { Bitmap, buildReceiptFor, rasterize } from "./escpos";
+import { getShopSettings, onShopSettingsChange } from "./shop";
 import { Bill } from "./types";
 
 export type Printers = { names: string[]; default: string | null };
@@ -20,7 +20,27 @@ export async function listPrinters(): Promise<Printers> {
   return invoke<Printers>("list_printers");
 }
 
-let logoCache: Uint8Array | null | undefined;
+let logoCache: Bitmap | null | undefined;
+let logoImgCache: HTMLImageElement | null | undefined;
+let logoCacheSrc: string | undefined;
+
+// A saved logo change should not keep printing the old one until restart.
+onShopSettingsChange(() => {
+  logoCache = undefined;
+  logoImgCache = undefined;
+  logoCacheSrc = undefined;
+});
+
+async function loadLogoImage(src: string): Promise<HTMLImageElement | null> {
+  try {
+    const img = new Image();
+    img.src = src;
+    await img.decode();
+    return img;
+  } catch {
+    return null; // a missing/broken logo must never block a sale
+  }
+}
 
 /**
  * Sends the bill as raw ESC/POS to the configured printer. Falls back to the
@@ -38,8 +58,13 @@ export async function printBill(bill: Bill): Promise<void> {
     throw new Error("No printer selected. Open Settings and choose the receipt printer.");
   }
 
-  if (logoCache === undefined) logoCache = await rasterize(SHOP.logo);
+  const shop = getShopSettings();
+  if (logoCacheSrc !== shop.logo) {
+    logoCache = await rasterize(shop.logo);
+    logoImgCache = await loadLogoImage(shop.logo);
+    logoCacheSrc = shop.logo;
+  }
 
-  const data = buildReceipt(bill, logoCache, savedDrawer());
+  const data = await buildReceiptFor(bill, shop, logoCache ?? null, logoImgCache ?? null, savedDrawer());
   await invoke("print_raw", { printer, data: Array.from(data) });
 }

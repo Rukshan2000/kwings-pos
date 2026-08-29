@@ -9,12 +9,27 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool};
 
+use crate::auth::SessionState;
 use crate::db::{duplicate, require_name, AppDb, DbError};
+
+/// Every mutating command here starts with this — catalogue edits (products,
+/// prices, units) are shop configuration, not something an unauthenticated
+/// caller should be able to touch even though reads are open.
+async fn require_signed_in(session: &tauri::State<'_, SessionState>) -> Result<(), DbError> {
+    if session.0.read().await.as_ref().is_none() {
+        return Err(DbError::Conflict("please sign in first".into()));
+    }
+    Ok(())
+}
 
 #[derive(Serialize, FromRow)]
 pub struct Category {
     pub id: i64,
     pub name: String,
+    /// Hex color (e.g. "#0ea5e9") the shop picked for this category, shown as
+    /// the till's category strip and product accent band. `None` falls back
+    /// to the till's default cycling palette.
+    pub color: Option<String>,
 }
 
 #[derive(Serialize, FromRow)]
@@ -69,6 +84,7 @@ pub struct Product {
     pub name: String,
     pub category_id: Option<i64>,
     pub category_name: Option<String>,
+    pub category_color: Option<String>,
     pub brand_id: Option<i64>,
     pub brand_name: Option<String>,
     pub base_unit_id: i64,
@@ -140,7 +156,7 @@ pub struct PriceOptionInput {
 
 const PRODUCT_SELECT: &str = "
     SELECT p.id, p.sku, p.barcode, p.name,
-           p.category_id, c.name AS category_name,
+           p.category_id, c.name AS category_name, c.color AS category_color,
            p.brand_id, b.name AS brand_name,
            p.base_unit_id, u.code AS base_unit_code,
            p.cost_price, p.selling_price, p.low_stock_at, p.active,
@@ -198,7 +214,7 @@ pub async fn list_categories(state: tauri::State<'_, AppDb>) -> Result<Vec<Categ
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
     Ok(
-        sqlx::query_as("SELECT id, name FROM category WHERE archived_at IS NULL ORDER BY name")
+        sqlx::query_as("SELECT id, name, color FROM category WHERE archived_at IS NULL ORDER BY name")
             .fetch_all(&db.pool)
             .await?,
     )
@@ -207,16 +223,58 @@ pub async fn list_categories(state: tauri::State<'_, AppDb>) -> Result<Vec<Categ
 #[tauri::command]
 pub async fn create_category(
     state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
     name: String,
+    color: Option<String>,
 ) -> Result<Category, DbError> {
+    require_signed_in(&session).await?;
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
     let name = require_name(&name, "category")?;
-    sqlx::query_as("INSERT INTO category (name) VALUES ($1) RETURNING id, name")
+    sqlx::query_as("INSERT INTO category (name, color) VALUES ($1, $2) RETURNING id, name, color")
         .bind(&name)
+        .bind(non_empty(color))
         .fetch_one(&db.pool)
         .await
         .map_err(|e| duplicate(e, "category", &name))
+}
+
+/// Lets the shop change a category's strip color without re-adding it.
+#[tauri::command]
+pub async fn update_category_color(
+    state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
+    id: i64,
+    color: Option<String>,
+) -> Result<Category, DbError> {
+    require_signed_in(&session).await?;
+    let guard = state.0.read().await;
+    let db = guard.as_ref().ok_or(DbError::NotReady)?;
+    Ok(
+        sqlx::query_as("UPDATE category SET color = $1 WHERE id = $2 RETURNING id, name, color")
+            .bind(non_empty(color))
+            .bind(id)
+            .fetch_one(&db.pool)
+            .await?,
+    )
+}
+
+/// Soft delete: a category may still be referenced by archived or active
+/// products, and hard-deleting it would corrupt their history.
+#[tauri::command]
+pub async fn archive_category(
+    state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
+    id: i64,
+) -> Result<(), DbError> {
+    require_signed_in(&session).await?;
+    let guard = state.0.read().await;
+    let db = guard.as_ref().ok_or(DbError::NotReady)?;
+    sqlx::query("UPDATE category SET archived_at = now() WHERE id = $1")
+        .bind(id)
+        .execute(&db.pool)
+        .await?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -233,8 +291,10 @@ pub async fn list_brands(state: tauri::State<'_, AppDb>) -> Result<Vec<Brand>, D
 #[tauri::command]
 pub async fn create_brand(
     state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
     name: String,
 ) -> Result<Brand, DbError> {
+    require_signed_in(&session).await?;
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
     let name = require_name(&name, "brand")?;
@@ -243,6 +303,23 @@ pub async fn create_brand(
         .fetch_one(&db.pool)
         .await
         .map_err(|e| duplicate(e, "brand", &name))
+}
+
+/// Soft delete, matching [`archive_category`].
+#[tauri::command]
+pub async fn archive_brand(
+    state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
+    id: i64,
+) -> Result<(), DbError> {
+    require_signed_in(&session).await?;
+    let guard = state.0.read().await;
+    let db = guard.as_ref().ok_or(DbError::NotReady)?;
+    sqlx::query("UPDATE brand SET archived_at = now() WHERE id = $1")
+        .bind(id)
+        .execute(&db.pool)
+        .await?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -266,9 +343,11 @@ pub async fn list_units(state: tauri::State<'_, AppDb>) -> Result<Vec<Unit>, DbE
 #[tauri::command]
 pub async fn create_unit(
     state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
     code: String,
     name: String,
 ) -> Result<Unit, DbError> {
+    require_signed_in(&session).await?;
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
 
@@ -281,6 +360,26 @@ pub async fn create_unit(
         .fetch_one(&db.pool)
         .await
         .map_err(|e| duplicate(e, "unit with code", &code))
+}
+
+/// Soft delete, matching [`archive_category`]. A base unit still in use by a
+/// product is left alone by this — nothing here re-points products at a
+/// different unit — so the shop may still see it in places until those
+/// products are updated.
+#[tauri::command]
+pub async fn archive_unit(
+    state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
+    id: i64,
+) -> Result<(), DbError> {
+    require_signed_in(&session).await?;
+    let guard = state.0.read().await;
+    let db = guard.as_ref().ok_or(DbError::NotReady)?;
+    sqlx::query("UPDATE unit SET archived_at = now() WHERE id = $1")
+        .bind(id)
+        .execute(&db.pool)
+        .await?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -376,8 +475,10 @@ fn map_unique_violation(e: sqlx::Error) -> ProductSaveError {
 #[tauri::command]
 pub async fn create_product(
     state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
     input: ProductInput,
 ) -> Result<Product, ProductSaveError> {
+    require_signed_in(&session).await?;
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
 
@@ -408,9 +509,11 @@ pub async fn create_product(
 #[tauri::command]
 pub async fn update_product(
     state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
     id: i64,
     input: ProductInput,
 ) -> Result<Product, ProductSaveError> {
+    require_signed_in(&session).await?;
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
 
@@ -443,7 +546,12 @@ pub async fn update_product(
 /// Soft delete only — a product may be referenced by historical sales and
 /// purchases, and hard-deleting it would corrupt that history.
 #[tauri::command]
-pub async fn archive_product(state: tauri::State<'_, AppDb>, id: i64) -> Result<(), DbError> {
+pub async fn archive_product(
+    state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
+    id: i64,
+) -> Result<(), DbError> {
+    require_signed_in(&session).await?;
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
     sqlx::query("UPDATE product SET active = false, archived_at = now() WHERE id = $1")
@@ -457,7 +565,12 @@ pub async fn archive_product(state: tauri::State<'_, AppDb>, id: i64) -> Result<
 /// that hid the product — its history, stock and price tiers are untouched and
 /// come back with it.
 #[tauri::command]
-pub async fn restore_product(state: tauri::State<'_, AppDb>, id: i64) -> Result<Product, DbError> {
+pub async fn restore_product(
+    state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
+    id: i64,
+) -> Result<Product, DbError> {
+    require_signed_in(&session).await?;
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
     sqlx::query("UPDATE product SET active = true, archived_at = NULL WHERE id = $1")
@@ -470,9 +583,11 @@ pub async fn restore_product(state: tauri::State<'_, AppDb>, id: i64) -> Result<
 #[tauri::command]
 pub async fn set_product_unit(
     state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
     product_id: i64,
     input: ProductUnitInput,
 ) -> Result<Vec<ProductUnit>, ProductSaveError> {
+    require_signed_in(&session).await?;
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
 
@@ -496,9 +611,11 @@ pub async fn set_product_unit(
 #[tauri::command]
 pub async fn set_price_tier(
     state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
     product_id: i64,
     input: PriceTierInput,
 ) -> Result<Vec<PriceTier>, DbError> {
+    require_signed_in(&session).await?;
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
 
@@ -525,10 +642,12 @@ pub async fn set_price_tier(
 #[tauri::command]
 pub async fn set_price_option(
     state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
     product_id: i64,
     id: Option<i64>,
     input: PriceOptionInput,
 ) -> Result<Vec<PriceOption>, DbError> {
+    require_signed_in(&session).await?;
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
 
@@ -568,9 +687,11 @@ pub async fn set_price_option(
 #[tauri::command]
 pub async fn delete_price_option(
     state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
     product_id: i64,
     id: i64,
 ) -> Result<Vec<PriceOption>, DbError> {
+    require_signed_in(&session).await?;
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
 

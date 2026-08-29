@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { lkr } from "../types";
 
 /**
@@ -23,6 +24,7 @@ export default function PricePickerDialog({
   onPick: (price: number) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -39,7 +41,7 @@ export default function PricePickerDialog({
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
       role="dialog"
       aria-modal="true"
-      aria-label={`Price for ${productName}`}
+      aria-label={t("pricePicker.aria", { name: productName })}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -48,10 +50,10 @@ export default function PricePickerDialog({
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="min-w-0 truncate text-sm font-semibold text-slate-700">{productName}</h2>
           <button type="button" className="text-xs text-slate-400 hover:text-slate-700" onClick={onClose}>
-            Close
+            {t("common.close")}
           </button>
         </div>
-        <p className="mt-1 text-xs text-slate-400">This item sells at more than one price today — pick one:</p>
+        <p className="mt-1 text-xs text-slate-400">{t("pricePicker.hint")}</p>
 
         <div className="mt-3 space-y-1.5">
           {choices.map((c, i) => (

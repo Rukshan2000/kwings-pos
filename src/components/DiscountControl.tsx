@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { SHOP } from "../shop";
-import { Discount, DiscountKind, lkr } from "../types";
+import { useTranslation } from "react-i18next";
+import { CURRENCY } from "../shop";
+import { Discount, DiscountKind, discountAmount, lkr } from "../types";
 
 /**
  * Percentage-or-amount discount entry, used for a single line and for the whole
@@ -17,7 +18,7 @@ export default function DiscountControl({
   onChange,
   onDone,
   autoFocus = false,
-  label = "Discount",
+  label,
 }: {
   value?: Discount;
   /** What the discount comes off, for the live preview and the cap. */
@@ -27,6 +28,8 @@ export default function DiscountControl({
   autoFocus?: boolean;
   label?: string;
 }) {
+  const { t } = useTranslation();
+  const resolvedLabel = label ?? t("discountControl.defaultLabel");
   const [kind, setKind] = useState<DiscountKind>(value?.kind ?? "percent");
   const [raw, setRaw] = useState(value ? String(value.value) : "");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -43,11 +46,9 @@ export default function DiscountControl({
   };
 
   const n = Number(raw) || 0;
-  // Mirrors the clamping the backend applies, so the cashier sees the capped
-  // figure here rather than a surprise on the receipt.
-  const amount = kind === "percent"
-    ? Math.min((base * Math.min(Math.max(n, 0), 100)) / 100, base)
-    : Math.min(Math.max(n, 0), base);
+  // Shares the same clamping/rounding the backend applies (via discountAmount),
+  // so the cashier sees the capped figure here rather than a surprise later.
+  const amount = discountAmount(base, { kind, value: n });
   const overCap = kind === "percent" ? n > 100 : n > base;
 
   return (
@@ -63,7 +64,7 @@ export default function DiscountControl({
                 kind === k ? "bg-brand-600 text-white" : "bg-white text-slate-600 hover:bg-slate-100"
               }`}
             >
-              {k === "percent" ? "%" : SHOP.currency}
+              {k === "percent" ? "%" : CURRENCY}
             </button>
           ))}
         </div>
@@ -74,7 +75,11 @@ export default function DiscountControl({
           step="0.01"
           min="0"
           max={kind === "percent" ? 100 : undefined}
-          placeholder={kind === "percent" ? `${label} %` : `${label} amount`}
+          placeholder={
+            kind === "percent"
+              ? t("discountControl.percentPlaceholder", { label: resolvedLabel })
+              : t("discountControl.amountPlaceholder", { label: resolvedLabel })
+          }
           value={raw}
           onChange={(e) => push(kind, e.target.value)}
           onKeyDown={(e) => {
@@ -83,23 +88,24 @@ export default function DiscountControl({
               onDone?.();
             }
           }}
-          aria-label={`${label} value`}
+          aria-label={`${resolvedLabel} value`}
         />
         {value && (
           <button
             type="button"
             className="px-1.5 text-xs text-slate-400 hover:text-amber-600"
             onClick={() => push(kind, "")}
-            aria-label={`Remove ${label.toLowerCase()}`}
+            aria-label={t("discountControl.removeAria", { label: resolvedLabel })}
           >
-            Clear
+            {t("common.clear")}
           </button>
         )}
       </div>
       {value && (
         <p className={`text-[11px] ${overCap ? "text-amber-600" : "text-slate-500"}`}>
           −{lkr(amount)}
-          {overCap && ` · capped at ${kind === "percent" ? "100%" : lkr(base)}`}
+          {overCap &&
+            ` · ${kind === "percent" ? t("discountControl.cappedAtPercent") : t("discountControl.cappedAt", { amount: lkr(base) })}`}
         </p>
       )}
     </div>

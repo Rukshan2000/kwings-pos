@@ -1,9 +1,15 @@
-//! Raw ESC/POS printing to a Windows spooler queue.
+//! Raw ESC/POS printing to whatever the OS's print spooler calls the receipt
+//! printer.
 //!
-//! Discovery goes through PowerShell because the `Get-Printer` output is stable
-//! across Windows versions; the actual write has to go through winspool with the
-//! RAW datatype, which is the only way to stop the driver from re-rendering our
+//! On Windows, discovery goes through PowerShell (`Get-Printer` output is
+//! stable across Windows versions) and the write goes through winspool with
+//! the RAW datatype — the only way to stop the driver from re-rendering our
 //! ESC/POS bytes as a page image.
+//!
+//! On macOS and Linux, both discovery and the write go through CUPS's `lp`/
+//! `lpstat` command-line tools (`lp -o raw`), which is CUPS's own equivalent
+//! of the Windows RAW datatype — it skips the driver's page-rendering filter
+//! and sends the bytes straight through.
 
 use serde::Serialize;
 
@@ -112,7 +118,98 @@ mod imp {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(unix)]
+mod imp {
+    use super::Printers;
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    fn lines(s: &str) -> Vec<String> {
+        s.lines()
+            .map(|l| l.trim().to_string())
+            .filter(|l| !l.is_empty())
+            .collect()
+    }
+
+    pub fn list() -> Result<Printers, String> {
+        // `lpstat -p` exits non-zero (and prints nothing useful) when CUPS has
+        // no printers configured, or isn't running — that is "no printers",
+        // not an error the cashier needs to see.
+        let names = Command::new("lpstat")
+            .arg("-p")
+            .output()
+            .ok()
+            .filter(|out| out.status.success())
+            .map(|out| {
+                // Lines look like: "printer EPSON_TM_T88V is idle.  enabled since ..."
+                lines(&String::from_utf8_lossy(&out.stdout))
+                    .into_iter()
+                    .filter_map(|l| {
+                        let mut parts = l.split_whitespace();
+                        (parts.next() == Some("printer"))
+                            .then(|| parts.next())
+                            .flatten()
+                            .map(str::to_string)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let default = Command::new("lpstat")
+            .arg("-d")
+            .output()
+            .ok()
+            .filter(|out| out.status.success())
+            .and_then(|out| {
+                // "system default destination: EPSON_TM_T88V"
+                String::from_utf8_lossy(&out.stdout)
+                    .trim()
+                    .rsplit(": ")
+                    .next()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string)
+            });
+
+        Ok(Printers { names, default })
+    }
+
+    pub fn send(printer: &str, data: &[u8]) -> Result<(), String> {
+        if data.is_empty() {
+            return Err("nothing to print".into());
+        }
+
+        let mut child = Command::new("lp")
+            .args(["-d", printer, "-o", "raw"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("failed to run lp: {e}"))?;
+
+        child
+            .stdin
+            .take()
+            .ok_or_else(|| "failed to open lp's stdin".to_string())?
+            .write_all(data)
+            .map_err(|e| format!("failed to write to lp: {e}"))?;
+
+        let out = child
+            .wait_with_output()
+            .map_err(|e| format!("lp did not run: {e}"))?;
+        if !out.status.success() {
+            let msg = String::from_utf8_lossy(&out.stderr).trim().to_string();
+            return Err(if msg.is_empty() {
+                format!("lp exited with {}", out.status)
+            } else {
+                msg
+            });
+        }
+        Ok(())
+    }
+}
+
+#[cfg(not(any(windows, unix)))]
 mod imp {
     use super::Printers;
 
@@ -121,7 +218,7 @@ mod imp {
     }
 
     pub fn send(_printer: &str, _data: &[u8]) -> Result<(), String> {
-        Err("raw receipt printing is only implemented on Windows".into())
+        Err("raw receipt printing is not supported on this platform".into())
     }
 }
 

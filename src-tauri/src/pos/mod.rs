@@ -79,7 +79,7 @@ fn priced_lines(lines: &[SaleLineInput]) -> Vec<PricedLine> {
 
 #[derive(Deserialize)]
 pub struct PaymentInput {
-    pub method: String, // 'cash' | 'card' | 'bank_transfer' | 'credit'
+    pub method: String, // 'cash' | 'card' | 'bank_transfer' | 'credit' | 'loyalty_points'
     pub amount: Decimal,
 }
 
@@ -204,6 +204,9 @@ pub async fn hold_sale(
     if lines.is_empty() {
         return Err(DbError::Conflict("cannot hold an empty cart".into()));
     }
+    if lines.iter().any(|l| l.quantity <= Decimal::ZERO) {
+        return Err(DbError::Conflict("every line needs a quantity greater than zero".into()));
+    }
 
     let totals = bill_totals(&priced_lines(&lines), bill_discount.map(Into::into));
 
@@ -271,15 +274,28 @@ async fn write_lines_and_discounts(
     bill_discount: Option<DiscountInput>,
 ) -> Result<(), DbError> {
     for (line, amounts) in lines.iter().zip(&totals.lines) {
+        // Snapshot the cost per selling-unit now, converted through the same
+        // base-unit factor as the stock movement, so COGS reporting survives
+        // later cost changes on the product and isn't silently `0` for a sale
+        // rung up in a non-base unit (e.g. selling by the bag when cost is
+        // tracked per kg).
+        let base_qty = to_base_qty(tx, line.product_id, line.unit_id, line.quantity).await?;
+        let base_cost_price: Decimal = sqlx::query_scalar("SELECT cost_price FROM product WHERE id = $1")
+            .bind(line.product_id)
+            .fetch_one(&mut **tx)
+            .await?;
+        let unit_cost = (base_cost_price * base_qty) / line.quantity;
+
         let line_id: i64 = sqlx::query_scalar(
-            "INSERT INTO sale_line (sale_id, product_id, unit_id, quantity, unit_price, discount_amount, line_total)
-             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+            "INSERT INTO sale_line (sale_id, product_id, unit_id, quantity, unit_price, unit_cost, discount_amount, line_total)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
         )
         .bind(sale_id)
         .bind(line.product_id)
         .bind(line.unit_id)
         .bind(line.quantity)
         .bind(line.unit_price)
+        .bind(unit_cost)
         .bind(amounts.discount_amount)
         .bind(amounts.line_total)
         .fetch_one(&mut **tx)
@@ -469,13 +485,18 @@ pub async fn cancel_held_sale(state: tauri::State<'_, AppDb>, id: i64) -> Result
 #[tauri::command]
 pub async fn complete_sale(
     state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, crate::auth::SessionState>,
     input: CheckoutInput,
 ) -> Result<SaleSummary, DbError> {
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
+    let cashier_id = session.0.read().await.as_ref().map(|u| u.id);
 
     if input.lines.is_empty() {
         return Err(DbError::Conflict("a sale needs at least one line".into()));
+    }
+    if input.lines.iter().any(|l| l.quantity <= Decimal::ZERO) {
+        return Err(DbError::Conflict("every line needs a quantity greater than zero".into()));
     }
 
     let totals = bill_totals(
@@ -536,11 +557,32 @@ pub async fn complete_sale(
             .await?;
     }
 
+    let redeem_amount: Decimal = input
+        .payments
+        .iter()
+        .filter(|p| p.method == "loyalty_points")
+        .map(|p| p.amount)
+        .sum();
+    if redeem_amount > Decimal::ZERO && input.customer_id.is_none() {
+        return Err(DbError::Conflict(
+            "paying with loyalty points needs a customer attached to the sale".into(),
+        ));
+    }
+    if redeem_amount > totals.grand_total {
+        return Err(DbError::Conflict(
+            "cannot redeem more loyalty points than the sale total".into(),
+        ));
+    }
+    if let Some(customer_id) = input.customer_id {
+        crate::loyalty::award_and_redeem(&mut tx, customer_id, totals.grand_total - redeem_amount, redeem_amount)
+            .await?;
+    }
+
     sqlx::query(
         "UPDATE sale SET invoice_number = $1, customer_id = $2, status = 'completed',
                           subtotal = $3, discount_total = $4, grand_total = $5,
-                          balance_due = $6, completed_at = now()
-         WHERE id = $7",
+                          balance_due = $6, completed_at = now(), created_by = $7
+         WHERE id = $8",
     )
     .bind(&invoice_number)
     .bind(input.customer_id)
@@ -548,6 +590,7 @@ pub async fn complete_sale(
     .bind(totals.discount_total)
     .bind(totals.grand_total)
     .bind(balance_due)
+    .bind(cashier_id)
     .bind(sale_id)
     .execute(&mut *tx)
     .await?;

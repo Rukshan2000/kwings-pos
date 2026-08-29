@@ -18,6 +18,7 @@ pub struct StockLevel {
     pub sku: Option<String>,
     pub base_unit_code: String,
     pub on_hand: Decimal,
+    pub initial_stock: Decimal,
     pub low_stock_at: Decimal,
     pub cost_price: Decimal,
 }
@@ -68,6 +69,7 @@ pub async fn stock_levels(
         "SELECT p.id AS product_id, p.name AS product_name, p.sku,
                 u.code AS base_unit_code,
                 COALESCE(SUM(m.quantity), 0) AS on_hand,
+                COALESCE(SUM(m.quantity) FILTER (WHERE m.reason = 'opening'), 0) AS initial_stock,
                 p.low_stock_at, p.cost_price
          FROM product p
          JOIN unit u ON u.id = p.base_unit_id

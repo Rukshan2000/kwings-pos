@@ -1,4 +1,5 @@
-import { SHOP } from "../shop";
+import i18n from "../i18n";
+import { BillLanguage, CURRENCY, getShopSettings, pick, ShopSettings } from "../shop";
 import {
   Bill,
   billDiscountAmount,
@@ -13,7 +14,27 @@ import {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-export default function Receipt({ bill }: { bill: Bill }) {
+/**
+ * Always rendered in the shop's configured bill language, not the cashier's
+ * current UI language — the two are independent settings, and a receipt
+ * should not change language because someone flipped the till's interface.
+ *
+ * `shop`/`lang` can be passed to preview settings that have not been saved
+ * yet (Settings' Bill Content tab); every other caller lets them default to
+ * whatever is actually persisted.
+ */
+export default function Receipt({
+  bill,
+  shop: shopOverride,
+  lang: langOverride,
+}: {
+  bill: Bill;
+  shop?: ShopSettings;
+  lang?: BillLanguage;
+}) {
+  const shop = shopOverride ?? getShopSettings();
+  const lang = langOverride ?? shop.billLanguage;
+  const t = i18n.getFixedT(lang);
   const d = bill.date;
   const sub = subtotal(bill.items);
   const off = discountTotal(bill.items, bill.billDiscount);
@@ -23,26 +44,26 @@ export default function Receipt({ bill }: { bill: Bill }) {
   return (
     <div className="receipt" id="receipt">
       <div className="r-head">
-        <img className="r-logo" src={SHOP.logo} alt="" />
-        <div className="r-tagline">{SHOP.tagline.split("").join(" ")}</div>
-        <div className="r-name">{SHOP.name}</div>
-        <div className="r-contact">Tel: {SHOP.tel}</div>
-        <div className="r-contact">{SHOP.web}</div>
+        <img className="r-logo" src={shop.logo} alt="" />
+        <div className="r-tagline">{pick(shop.tagline, lang).split("").join(" ")}</div>
+        <div className="r-name">{pick(shop.name, lang)}</div>
+        <div className="r-contact">{t("receipt.tel", { tel: shop.tel })}</div>
+        <div className="r-contact">{shop.web}</div>
       </div>
 
       <div className="r-sep" />
 
       <div className="r-meta">
         <div>
-          <span>Bill Number:</span>
+          <span>{t("receipt.billNumber")}</span>
           <b>{bill.billNumber}</b>
         </div>
         <div>
-          <span>Date:</span>
+          <span>{t("receipt.date")}</span>
           <span>{`${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`}</span>
         </div>
         <div>
-          <span>Time:</span>
+          <span>{t("receipt.time")}</span>
           <span>{`${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`}</span>
         </div>
       </div>
@@ -55,17 +76,17 @@ export default function Receipt({ bill }: { bill: Bill }) {
             <div className="r-item-name">{i.name}</div>
             <div className="r-item-line">
               <span>
-                {i.qty} x {SHOP.currency} {money(i.price)}
+                {i.qty} x {CURRENCY} {money(i.price)}
               </span>
               <b>
-                {SHOP.currency} {money(lineGross(i))}
+                {CURRENCY} {money(lineGross(i))}
               </b>
             </div>
             {i.discount && lineDiscount(i) > 0 && (
               <div className="r-item-line">
-                <span>{`  Discount ${describeDiscount(i.discount)}`}</span>
+                <span>{t("receipt.discountLine", { desc: describeDiscount(i.discount) })}</span>
                 <b>
-                  −{SHOP.currency} {money(lineDiscount(i))}
+                  −{CURRENCY} {money(lineDiscount(i))}
                 </b>
               </div>
             )}
@@ -76,40 +97,44 @@ export default function Receipt({ bill }: { bill: Bill }) {
       <div className="r-sep" />
 
       <div className="r-sum">
-        <span>Subtotal:</span>
+        <span>{t("receipt.subtotal")}</span>
         <span>
-          {SHOP.currency} {money(sub)}
+          {CURRENCY} {money(sub)}
         </span>
       </div>
       {billOff > 0 && (
         <div className="r-sum">
-          <span>{`Bill discount${bill.billDiscount ? ` (${describeDiscount(bill.billDiscount)})` : ""}:`}</span>
           <span>
-            −{SHOP.currency} {money(billOff)}
+            {bill.billDiscount
+              ? t("receipt.billDiscount", { desc: describeDiscount(bill.billDiscount) })
+              : t("receipt.billDiscountPlain")}
+          </span>
+          <span>
+            −{CURRENCY} {money(billOff)}
           </span>
         </div>
       )}
       {off > 0 && (
         <div className="r-sum">
-          <span>You saved:</span>
+          <span>{t("receipt.youSaved")}</span>
           <span>
-            −{SHOP.currency} {money(off)}
+            −{CURRENCY} {money(off)}
           </span>
         </div>
       )}
       <div className="r-total">
-        <span>TOTAL:</span>
+        <span>{t("receipt.total")}</span>
         <span>
-          {SHOP.currency} {money(total)}
+          {CURRENCY} {money(total)}
         </span>
       </div>
 
       <div className="r-sep" />
 
       <div className="r-foot">
-        <div className="r-thanks">{SHOP.footer[0]}</div>
-        <div>{SHOP.footer[1]}</div>
-        <div className="r-italic">{SHOP.footer[2]}</div>
+        <div className="r-thanks">{pick(shop.footer[0], lang)}</div>
+        <div>{pick(shop.footer[1], lang)}</div>
+        <div className="r-italic">{pick(shop.footer[2], lang)}</div>
       </div>
     </div>
   );

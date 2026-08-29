@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 // Thin typed wrapper over Tauri commands. All SQL and business logic live in
 // src-tauri/src/catalogue — this file only shapes the request/response types.
 
-export type Category = { id: number; name: string };
+export type Category = { id: number; name: string; color: string | null };
 export type Brand = { id: number; name: string };
 export type Unit = { id: number; code: string; name: string };
 
@@ -14,6 +14,7 @@ export type Product = {
   name: string;
   category_id: number | null;
   category_name: string | null;
+  category_color: string | null;
   brand_id: number | null;
   brand_name: string | null;
   base_unit_id: number;
@@ -138,6 +139,9 @@ export type Purchase = {
   total: string;
   paid: string;
   created_at: string;
+  received_at: string | null;
+  line_count: number;
+  product_names: string;
 };
 
 export type PurchaseLine = {
@@ -151,7 +155,9 @@ export type PurchaseLine = {
   line_total: string;
 };
 
-export type PurchaseDetail = Purchase & { lines: PurchaseLine[] };
+export type PurchasePayment = { id: number; amount: string; method: string; paid_at: string };
+
+export type PurchaseDetail = Purchase & { lines: PurchaseLine[]; payments: PurchasePayment[] };
 
 export type StockLevel = {
   product_id: number;
@@ -159,6 +165,7 @@ export type StockLevel = {
   sku: string | null;
   base_unit_code: string;
   on_hand: string;
+  initial_stock: string;
   low_stock_at: string;
   cost_price: string;
 };
@@ -187,15 +194,155 @@ export type ProductInput = {
   sort_order: number;
 };
 
+export type RevenueDay = { day: string; order_count: number; revenue: string };
+export type RevenueReport = {
+  order_count: number;
+  subtotal: string;
+  discount_total: string;
+  tax_total: string;
+  revenue: string;
+  daily: RevenueDay[];
+};
+
+export type ProductSalesRow = {
+  product_id: number;
+  product_name: string;
+  sku: string | null;
+  quantity: string;
+  revenue: string;
+  cost: string;
+  profit: string;
+};
+
+export type CategoryProfitRow = { category_name: string; revenue: string; cost: string; profit: string };
+export type ProfitReport = {
+  revenue: string;
+  cost: string;
+  discount_total: string;
+  profit: string;
+  margin_pct: string;
+  by_category: CategoryProfitRow[];
+};
+
+export type PaymentMethodRow = { method: string; order_count: number; total: string };
+
+export type SupplierPurchaseRow = {
+  supplier_id: number;
+  supplier_name: string;
+  purchase_count: number;
+  total: string;
+  paid: string;
+  outstanding: string;
+};
+export type PurchasesReport = {
+  purchase_count: number;
+  total: string;
+  paid: string;
+  outstanding: string;
+  by_supplier: SupplierPurchaseRow[];
+};
+
+export type StockSummary = { product_count: number; low_stock_count: number; total_on_hand_value: string };
+
+export type DenominationCount = { value: string; count: number };
+export type PaymentMethodCount = { method: string; counted: string };
+export type PaymentMethodExpected = { method: string; sales: string; refunds: string; expected: string };
+export type SavedReconciliation = {
+  opening_cash: string;
+  counted_cash: string;
+  variance: string;
+  opening_denominations: DenominationCount[];
+  denominations: DenominationCount[];
+  payment_counts: PaymentMethodCount[];
+  note: string | null;
+};
+export type ReconciliationHistoryRow = {
+  business_date: string;
+  opening_cash: string;
+  counted_cash: string;
+  expected_cash: string;
+  variance: string;
+  note: string | null;
+  created_by_name: string | null;
+};
+export type DailyReconciliation = {
+  order_count: number;
+  sold: string;
+  earned: string;
+  cash_sales: string;
+  cash_refunds: string;
+  net_cash: string;
+  other_methods: PaymentMethodExpected[];
+  saved: SavedReconciliation | null;
+};
+
+export type Customer = { id: number; name: string; phone: string | null; loyalty_points: string };
+export type LoyaltySetting = {
+  earn_amount_lkr: string;
+  earn_points: string;
+  redeem_value_per_point: string;
+};
+
+export type Role = "admin" | "manager" | "cashier";
+
+export type CurrentUser = {
+  id: number;
+  username: string;
+  display_name: string;
+  role: Role;
+  must_change_password: boolean;
+};
+
+export type UserRow = {
+  id: number;
+  username: string;
+  display_name: string;
+  role: Role;
+  active: boolean;
+};
+
+export type CashierSalesRow = {
+  cashier_id: number | null;
+  cashier_name: string;
+  order_count: number;
+  revenue: string;
+};
+
+export type ReturnableLine = {
+  sale_line_id: number;
+  product_id: number;
+  product_name: string;
+  unit_id: number;
+  unit_code: string;
+  quantity: string;
+  unit_price: string;
+  line_total: string;
+  already_returned: string;
+};
+export type SaleForReturn = {
+  sale_id: number;
+  invoice_number: string | null;
+  customer_name: string | null;
+  completed_at: string | null;
+  lines: ReturnableLine[];
+};
+export type ReturnSummary = { id: number; total: string };
+
 export const api = {
+  openCustomerDisplay: () => invoke<void>("open_customer_display"),
+
   categories: () => invoke<Category[]>("list_categories"),
-  createCategory: (name: string) => invoke<Category>("create_category", { name }),
+  createCategory: (name: string, color: string | null) => invoke<Category>("create_category", { name, color }),
+  updateCategoryColor: (id: number, color: string | null) => invoke<Category>("update_category_color", { id, color }),
+  archiveCategory: (id: number) => invoke<void>("archive_category", { id }),
 
   brands: () => invoke<Brand[]>("list_brands"),
   createBrand: (name: string) => invoke<Brand>("create_brand", { name }),
+  archiveBrand: (id: number) => invoke<void>("archive_brand", { id }),
 
   units: () => invoke<Unit[]>("list_units"),
   createUnit: (code: string, name: string) => invoke<Unit>("create_unit", { code, name }),
+  archiveUnit: (id: number) => invoke<void>("archive_unit", { id }),
 
   products: (search?: string, archived?: boolean) =>
     invoke<Product[]>("list_products", { search, archived }),
@@ -234,9 +381,19 @@ export const api = {
   adjustStock: (input: { product_id: number; quantity: string; reason_note: string }) =>
     invoke<void>("adjust_stock", { input }),
 
+  customers: () => invoke<Customer[]>("list_customers"),
+  createCustomer: (name: string, phone: string | null) =>
+    invoke<Customer>("create_customer", { name, phone }),
+  archiveCustomer: (id: number) => invoke<void>("archive_customer", { id }),
+
+  loyaltySetting: () => invoke<LoyaltySetting>("loyalty_setting"),
+  updateLoyaltySetting: (input: LoyaltySetting) =>
+    invoke<LoyaltySetting>("update_loyalty_setting", { input }),
+
   suppliers: () => invoke<Supplier[]>("list_suppliers"),
   createSupplier: (input: { name: string; phone: string | null; address: string | null }) =>
     invoke<Supplier>("create_supplier", { input }),
+  archiveSupplier: (id: number) => invoke<void>("archive_supplier", { id }),
 
   purchases: () => invoke<Purchase[]>("list_purchases"),
   purchase: (id: number) => invoke<PurchaseDetail>("get_purchase", { id }),
@@ -263,4 +420,54 @@ export const api = {
   heldSale: (id: number) => invoke<HeldSaleDetail>("held_sale", { id }),
   cancelHeldSale: (id: number) => invoke<void>("cancel_held_sale", { id }),
   saleReceipt: (saleId: number) => invoke<ReceiptData>("sale_receipt", { saleId }),
+
+  revenueReport: (from: string, to: string) =>
+    invoke<RevenueReport>("revenue_report", { from, to }),
+  salesByProduct: (from: string, to: string) =>
+    invoke<ProductSalesRow[]>("sales_by_product", { from, to }),
+  profitSummary: (from: string, to: string) =>
+    invoke<ProfitReport>("profit_summary", { from, to }),
+  paymentBreakdown: (from: string, to: string) =>
+    invoke<PaymentMethodRow[]>("payment_breakdown", { from, to }),
+  purchasesReport: (from: string, to: string) =>
+    invoke<PurchasesReport>("purchases_report", { from, to }),
+  stockSummary: () => invoke<StockSummary>("stock_summary"),
+  salesByCashier: (from: string, to: string) =>
+    invoke<CashierSalesRow[]>("sales_by_cashier", { from, to }),
+  mySales: (from: string, to: string) => invoke<CashierSalesRow>("my_sales", { from, to }),
+
+  login: (username: string, password: string) => invoke<CurrentUser>("login", { username, password }),
+  logout: () => invoke<void>("logout"),
+  currentUser: () => invoke<CurrentUser | null>("current_user"),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    invoke<void>("change_password", { input: { current_password: currentPassword, new_password: newPassword } }),
+  listUsers: () => invoke<UserRow[]>("list_users"),
+  createUser: (input: { username: string; display_name: string; password: string; role: Role }) =>
+    invoke<UserRow>("create_user", { input }),
+  setUserRole: (id: number, role: Role) => invoke<void>("set_user_role", { id, role }),
+  setUserActive: (id: number, active: boolean) => invoke<void>("set_user_active", { id, active }),
+  resetUserPassword: (id: number, newPassword: string) =>
+    invoke<void>("reset_user_password", { id, newPassword }),
+
+  dailyReconciliation: (businessDate: string) =>
+    invoke<DailyReconciliation>("daily_reconciliation", { businessDate }),
+  saveOpeningCount: (input: { business_date: string; denominations: DenominationCount[] }) =>
+    invoke<DailyReconciliation>("save_opening_count", { input }),
+  saveClosingCount: (input: {
+    business_date: string;
+    denominations: DenominationCount[];
+    payment_counts: PaymentMethodCount[];
+    note: string | null;
+  }) => invoke<DailyReconciliation>("save_closing_count", { input }),
+  listReconciliations: (from: string, to: string) =>
+    invoke<ReconciliationHistoryRow[]>("list_reconciliations", { from, to }),
+
+  findSaleForReturn: (invoiceNumber: string) =>
+    invoke<SaleForReturn>("find_sale_for_return", { invoiceNumber }),
+  createReturn: (input: {
+    sale_id: number;
+    lines: { sale_line_id: number; quantity: string }[];
+    reason: string | null;
+    refund_method: string;
+  }) => invoke<ReturnSummary>("create_return", { input }),
 };

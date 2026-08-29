@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { SellableUnit } from "../pricing";
 import { Discount, lkr } from "../types";
 import DiscountControl from "./DiscountControl";
@@ -45,6 +46,7 @@ export default function LineDialog({
   onDiscount: (d?: Discount) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -61,7 +63,7 @@ export default function LineDialog({
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
       role="dialog"
       aria-modal="true"
-      aria-label={`Options for ${productName}`}
+      aria-label={t("lineDialog.aria", { name: productName })}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -70,12 +72,12 @@ export default function LineDialog({
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="min-w-0 truncate text-sm font-semibold text-slate-700">{productName}</h2>
           <button type="button" className="text-xs text-slate-400 hover:text-slate-700" onClick={onClose}>
-            Close
+            {t("common.close")}
           </button>
         </div>
         {units.length > 1 && (
           <>
-            <p className="mt-3 text-xs font-medium text-slate-500">Sell by</p>
+            <p className="mt-3 text-xs font-medium text-slate-500">{t("lineDialog.sellBy")}</p>
             <div className="mt-1.5 space-y-1.5">
               {units.map((u) => {
                 const active = u.unitId === selected;
@@ -94,7 +96,7 @@ export default function LineDialog({
                       {u.code}
                       {u.factor !== 1 && (
                         <span className="ml-1.5 text-xs font-normal text-slate-400">
-                          = {u.factor} base
+                          {t("lineDialog.baseSuffix", { factor: u.factor })}
                         </span>
                       )}
                     </span>
@@ -110,7 +112,7 @@ export default function LineDialog({
 
         {priceChoices && priceChoices.length > 1 && (
           <>
-            <p className="mt-3 text-xs font-medium text-slate-500">Price</p>
+            <p className="mt-3 text-xs font-medium text-slate-500">{t("lineDialog.price")}</p>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {priceChoices.map((c) => (
                 <button
@@ -130,20 +132,20 @@ export default function LineDialog({
           </>
         )}
 
-        <p className="mt-4 text-xs font-medium text-slate-500">Discount this item</p>
+        <p className="mt-4 text-xs font-medium text-slate-500">{t("lineDialog.itemDiscount")}</p>
         <div className="mt-1.5">
           <DiscountControl
             value={discount}
             base={discountBase}
             autoFocus={units.length === 1}
-            label="Item discount"
+            label={t("lineDialog.itemDiscountLabel")}
             onChange={onDiscount}
             onDone={onClose}
           />
         </div>
 
         <button type="button" className="btn-primary mt-5 w-full py-2.5" onClick={onClose}>
-          Done
+          {t("lineDialog.done")}
         </button>
       </div>
     </div>

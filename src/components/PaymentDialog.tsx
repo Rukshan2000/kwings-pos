@@ -1,16 +1,18 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { lkr } from "../types";
 
 export type Payment = { method: string; amount: string };
 
-// Short labels: these sit four-across in a dialog, and "Bank transfer" on two
+// Short labels: these sit five-across in a dialog, and "Bank transfer" on two
 // lines makes every button in the row taller for no gain.
 const METHODS = [
-  { value: "cash", label: "Cash" },
-  { value: "card", label: "Card" },
-  { value: "bank_transfer", label: "Bank" },
-  { value: "credit", label: "Credit" },
-];
+  { value: "cash", key: "cash" },
+  { value: "card", key: "card" },
+  { value: "bank_transfer", key: "bank_transfer" },
+  { value: "credit", key: "credit" },
+  { value: "loyalty_points", key: "loyalty_points" },
+] as const;
 
 /**
  * Payment entry, in a dialog rather than inline in the order card.
@@ -37,6 +39,7 @@ export default function PaymentDialog({
   onConfirm: () => void;
   pending: boolean;
 }) {
+  const { t } = useTranslation();
   const firstAmount = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -67,7 +70,7 @@ export default function PaymentDialog({
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
       role="dialog"
       aria-modal="true"
-      aria-label="Take payment"
+      aria-label={t("paymentDialog.takePayment")}
       onMouseDown={(e) => {
         // Only a click that both starts and ends on the backdrop closes it —
         // a drag that happens to end here should not discard the form.
@@ -76,20 +79,20 @@ export default function PaymentDialog({
     >
       <div className="card w-full max-w-md p-5">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold text-slate-700">Take payment</h2>
+          <h2 className="text-sm font-semibold text-slate-700">{t("paymentDialog.takePayment")}</h2>
           <button
             type="button"
             className="text-xs text-slate-400 hover:text-slate-700 disabled:opacity-40"
             onClick={onClose}
             disabled={pending}
           >
-            Close
+            {t("common.close")}
           </button>
         </div>
 
         <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3">
           <div className="flex items-baseline justify-between">
-            <span className="text-sm text-slate-500">To pay</span>
+            <span className="text-sm text-slate-500">{t("paymentDialog.toPay")}</span>
             <span className="text-2xl font-semibold text-slate-900">{lkr(total)}</span>
           </div>
         </div>
@@ -107,9 +110,9 @@ export default function PaymentDialog({
                   two taps and a small target, and the method is chosen on every
                   single sale. All four stay visible so the choice is one tap. */}
               <div
-                className="grid grid-cols-4 gap-1.5"
+                className="grid grid-cols-5 gap-1.5"
                 role="radiogroup"
-                aria-label={`Payment ${i + 1} method`}
+                aria-label={t("paymentDialog.methodAria", { n: i + 1 })}
               >
                 {METHODS.map((m) => {
                   const active = p.method === m.value;
@@ -126,7 +129,7 @@ export default function PaymentDialog({
                           : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                       }`}
                     >
-                      {m.label}
+                      {t(`paymentDialog.methods.${m.key}`)}
                     </button>
                   );
                 })}
@@ -139,8 +142,8 @@ export default function PaymentDialog({
                   type="number"
                   step="0.01"
                   min="0"
-                  placeholder="Amount"
-                  aria-label={`Payment ${i + 1} amount`}
+                  placeholder={t("paymentDialog.amountPlaceholder")}
+                  aria-label={t("paymentDialog.amountAria", { n: i + 1 })}
                   value={p.amount}
                   onChange={(e) => set(i, { amount: e.target.value })}
                 />
@@ -149,7 +152,7 @@ export default function PaymentDialog({
                     type="button"
                     className="px-2 text-slate-400 hover:text-amber-600"
                     onClick={() => onChange(payments.filter((_, j) => j !== i))}
-                    aria-label={`Remove payment ${i + 1}`}
+                    aria-label={t("paymentDialog.removeAria", { n: i + 1 })}
                   >
                     ×
                   </button>
@@ -164,7 +167,7 @@ export default function PaymentDialog({
               className="text-xs text-slate-500 hover:text-brand-700"
               onClick={() => onChange([...payments, { method: "cash", amount: "" }])}
             >
-              + Split payment
+              {t("paymentDialog.splitPayment")}
             </button>
             {outstanding > 0 && (
               <button
@@ -180,32 +183,32 @@ export default function PaymentDialog({
                   })
                 }
               >
-                Pay the rest
+                {t("paymentDialog.payTheRest")}
               </button>
             )}
           </div>
 
           <dl className="space-y-1 border-t border-slate-200 pt-3 text-sm">
             <div className="flex justify-between text-slate-500">
-              <dt>Paid</dt>
+              <dt>{t("paymentDialog.paid")}</dt>
               <dd>{lkr(paid)}</dd>
             </div>
             {outstanding > 0 && (
               <div className="flex justify-between font-medium text-amber-600">
-                <dt>On credit</dt>
+                <dt>{t("paymentDialog.onCredit")}</dt>
                 <dd>{lkr(outstanding)}</dd>
               </div>
             )}
             {change > 0 && (
               <div className="flex justify-between font-medium text-emerald-600">
-                <dt>Change</dt>
+                <dt>{t("paymentDialog.change")}</dt>
                 <dd>{lkr(change)}</dd>
               </div>
             )}
           </dl>
 
           <button type="submit" className="btn-primary mt-2 w-full py-3" disabled={pending}>
-            {pending ? "Processing…" : "Complete Sale"}
+            {pending ? t("paymentDialog.processing") : t("paymentDialog.completeSale")}
           </button>
         </form>
       </div>

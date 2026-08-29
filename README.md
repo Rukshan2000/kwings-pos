@@ -1,4 +1,4 @@
-# kwings-pos — Green Plus Argo POS
+# kwings-pos — POS MASTER (for Green Plus Argo)
 
 Offline-first retail POS for Windows. Tauri v2 + Vite + React + TypeScript, with a
 **bundled portable PostgreSQL** and raw ESC/POS receipt printing.

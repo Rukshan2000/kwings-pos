@@ -1,4 +1,4 @@
-import { SHOP } from "./shop";
+import { CURRENCY } from "./shop";
 
 export type DiscountKind = "percent" | "fixed";
 
@@ -11,6 +11,19 @@ export type Item = {
   qty: number;
   price: number;
   discount?: Discount;
+};
+
+/** What the till pushes to the customer-facing display window on every cart
+    change — just enough to render the same items and totals a second time,
+    not the full `CartLine` shape (units/tiers/product detail) the till needs
+    to keep re-pricing lines. */
+export type CustomerDisplayPayload = {
+  items: Item[];
+  billDiscount?: Discount;
+  shopName: string;
+  /** Set only right after a sale completes, so the display can show a
+      "thank you" instead of going straight back to an empty cart. */
+  completedInvoice?: string;
 };
 
 export type Bill = {
@@ -71,7 +84,7 @@ export const money = (n: number) =>
   n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** Every price the shop shows or prints carries its currency. */
-export const lkr = (n: number) => `${SHOP.currency} ${money(n)}`;
+export const lkr = (n: number) => `${CURRENCY} ${money(n)}`;
 
 /** "10%" or "LKR 250.00", for showing what was applied. */
 export const describeDiscount = (d: Discount) =>

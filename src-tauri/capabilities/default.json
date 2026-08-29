@@ -1,7 +1,16 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permissions for the POS main window.",
-  "windows": ["main"],
-  "permissions": ["core:default"]
+  "description": "Permissions for the POS main window and the customer-facing display.",
+  "windows": ["main", "customer"],
+  "permissions": [
+    "core:default",
+    "core:webview:allow-create-webview-window",
+    "core:event:allow-emit",
+    "core:event:allow-emit-to",
+    "core:event:allow-listen",
+    "core:window:allow-show",
+    "core:window:allow-set-focus",
+    "dialog:allow-open"
+  ]
 }

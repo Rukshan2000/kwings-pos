@@ -10,7 +10,15 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool};
 
+use crate::auth::SessionState;
 use crate::db::{require_name, AppDb, DbError};
+
+async fn require_signed_in(session: &tauri::State<'_, SessionState>) -> Result<(), DbError> {
+    if session.0.read().await.as_ref().is_none() {
+        return Err(DbError::Conflict("please sign in first".into()));
+    }
+    Ok(())
+}
 
 #[derive(Serialize, FromRow)]
 pub struct Supplier {
@@ -38,6 +46,9 @@ pub struct Purchase {
     pub total: Decimal,
     pub paid: Decimal,
     pub created_at: chrono::DateTime<chrono::Utc>,
+    pub received_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub line_count: i64,
+    pub product_names: String,
 }
 
 #[derive(Serialize, FromRow)]
@@ -57,6 +68,15 @@ pub struct PurchaseDetail {
     #[serde(flatten)]
     pub purchase: Purchase,
     pub lines: Vec<PurchaseLine>,
+    pub payments: Vec<PurchasePaymentRow>,
+}
+
+#[derive(Serialize, FromRow)]
+pub struct PurchasePaymentRow {
+    pub id: i64,
+    pub amount: Decimal,
+    pub method: String,
+    pub paid_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Deserialize)]
@@ -136,11 +156,32 @@ pub async fn create_supplier(
     )
 }
 
+/// Soft delete only — a supplier may be referenced by historical purchases,
+/// and hard-deleting it would corrupt that history.
+#[tauri::command]
+pub async fn archive_supplier(state: tauri::State<'_, AppDb>, id: i64) -> Result<(), DbError> {
+    let guard = state.0.read().await;
+    let db = guard.as_ref().ok_or(DbError::NotReady)?;
+    sqlx::query("UPDATE supplier SET archived_at = now() WHERE id = $1")
+        .bind(id)
+        .execute(&db.pool)
+        .await?;
+    Ok(())
+}
+
 async fn fetch_purchase(pool: &PgPool, id: i64) -> Result<Purchase, DbError> {
     Ok(sqlx::query_as(
         "SELECT p.id, p.supplier_id, s.name AS supplier_name, p.invoice_number,
-                p.status::text AS status, p.total, p.paid, p.created_at
-         FROM purchase p JOIN supplier s ON s.id = p.supplier_id
+                p.status::text AS status, p.total, p.paid, p.created_at, p.received_at,
+                COALESCE(names.line_count, 0) AS line_count,
+                COALESCE(names.product_names, '') AS product_names
+         FROM purchase p
+         JOIN supplier s ON s.id = p.supplier_id
+         LEFT JOIN LATERAL (
+             SELECT COUNT(*) AS line_count, string_agg(prod.name, ', ' ORDER BY l.id) AS product_names
+             FROM purchase_line l JOIN product prod ON prod.id = l.product_id
+             WHERE l.purchase_id = p.id
+         ) names ON true
          WHERE p.id = $1",
     )
     .bind(id)
@@ -163,14 +204,34 @@ async fn fetch_lines(pool: &PgPool, purchase_id: i64) -> Result<Vec<PurchaseLine
     .await?)
 }
 
+async fn fetch_payments(pool: &PgPool, purchase_id: i64) -> Result<Vec<PurchasePaymentRow>, DbError> {
+    Ok(sqlx::query_as(
+        "SELECT id, amount, method, paid_at
+         FROM purchase_payment
+         WHERE purchase_id = $1
+         ORDER BY paid_at",
+    )
+    .bind(purchase_id)
+    .fetch_all(pool)
+    .await?)
+}
+
 #[tauri::command]
 pub async fn list_purchases(state: tauri::State<'_, AppDb>) -> Result<Vec<Purchase>, DbError> {
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
     Ok(sqlx::query_as(
         "SELECT p.id, p.supplier_id, s.name AS supplier_name, p.invoice_number,
-                p.status::text AS status, p.total, p.paid, p.created_at
-         FROM purchase p JOIN supplier s ON s.id = p.supplier_id
+                p.status::text AS status, p.total, p.paid, p.created_at, p.received_at,
+                COALESCE(names.line_count, 0) AS line_count,
+                COALESCE(names.product_names, '') AS product_names
+         FROM purchase p
+         JOIN supplier s ON s.id = p.supplier_id
+         LEFT JOIN LATERAL (
+             SELECT COUNT(*) AS line_count, string_agg(prod.name, ', ' ORDER BY l.id) AS product_names
+             FROM purchase_line l JOIN product prod ON prod.id = l.product_id
+             WHERE l.purchase_id = p.id
+         ) names ON true
          ORDER BY p.created_at DESC LIMIT 200",
     )
     .fetch_all(&db.pool)
@@ -187,6 +248,7 @@ pub async fn get_purchase(
     Ok(PurchaseDetail {
         purchase: fetch_purchase(&db.pool, id).await?,
         lines: fetch_lines(&db.pool, id).await?,
+        payments: fetch_payments(&db.pool, id).await?,
     })
 }
 
@@ -195,8 +257,10 @@ pub async fn get_purchase(
 #[tauri::command]
 pub async fn create_purchase(
     state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
     input: PurchaseInput,
 ) -> Result<PurchaseDetail, DbError> {
+    require_signed_in(&session).await?;
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
 
@@ -240,6 +304,7 @@ pub async fn create_purchase(
     Ok(PurchaseDetail {
         purchase: fetch_purchase(&db.pool, purchase_id).await?,
         lines: fetch_lines(&db.pool, purchase_id).await?,
+        payments: fetch_payments(&db.pool, purchase_id).await?,
     })
 }
 
@@ -249,8 +314,10 @@ pub async fn create_purchase(
 #[tauri::command]
 pub async fn receive_purchase(
     state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
     id: i64,
 ) -> Result<PurchaseDetail, DbError> {
+    require_signed_in(&session).await?;
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
 
@@ -307,7 +374,7 @@ pub async fn receive_purchase(
         .await?;
     }
 
-    sqlx::query("UPDATE purchase SET status = 'received' WHERE id = $1")
+    sqlx::query("UPDATE purchase SET status = 'received', received_at = now() WHERE id = $1")
         .bind(id)
         .execute(&mut *tx)
         .await?;
@@ -317,16 +384,19 @@ pub async fn receive_purchase(
     Ok(PurchaseDetail {
         purchase: fetch_purchase(&db.pool, id).await?,
         lines: fetch_lines(&db.pool, id).await?,
+        payments: fetch_payments(&db.pool, id).await?,
     })
 }
 
 #[tauri::command]
 pub async fn record_purchase_payment(
     state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
     purchase_id: i64,
     amount: Decimal,
     method: String,
 ) -> Result<(), DbError> {
+    require_signed_in(&session).await?;
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
 
@@ -352,10 +422,12 @@ pub async fn record_purchase_payment(
 #[tauri::command]
 pub async fn return_purchase_lines(
     state: tauri::State<'_, AppDb>,
+    session: tauri::State<'_, SessionState>,
     purchase_id: i64,
     lines: Vec<ReturnLineInput>,
     reason: Option<String>,
 ) -> Result<(), DbError> {
+    require_signed_in(&session).await?;
     let guard = state.0.read().await;
     let db = guard.as_ref().ok_or(DbError::NotReady)?;
 

@@ -1,10 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../api";
+import Pagination, { paginate } from "../components/Pagination";
 
 export default function Inventory() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [lowOnly, setLowOnly] = useState(false);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<number | null>(null);
   const [qty, setQty] = useState("");
   const [note, setNote] = useState("");
@@ -16,6 +21,14 @@ export default function Inventory() {
     queryFn: () => api.stockLevels(lowOnly),
   });
   const valuation = useQuery({ queryKey: ["stock-valuation"], queryFn: api.stockValuation });
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return levels.data ?? [];
+    return (levels.data ?? []).filter(
+      (l) => l.product_name.toLowerCase().includes(q) || (l.sku ?? "").toLowerCase().includes(q)
+    );
+  }, [levels.data, search]);
+  const { pageItems, totalPages, safePage } = paginate(filtered, page, 15);
   const movements = useQuery({
     queryKey: ["stock-movements", selected],
     queryFn: () => api.stockMovements(selected!),
@@ -45,18 +58,32 @@ export default function Inventory() {
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-5 items-start">
       <div className="card p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <label className="flex items-center gap-2 text-sm text-slate-600">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
             <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-400"
-              checked={lowOnly}
-              onChange={(e) => setLowOnly(e.target.checked)}
+              className="field w-56"
+              placeholder={t("common.search")}
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
             />
-            Low stock only
-          </label>
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-400"
+                checked={lowOnly}
+                onChange={(e) => {
+                  setLowOnly(e.target.checked);
+                  setPage(1);
+                }}
+              />
+              {t("inventory.lowStockOnly")}
+            </label>
+          </div>
           <span className="text-sm text-slate-500">
-            Stock valuation: <b className="text-slate-800">{valuation.data ?? "…"}</b>
+            {t("inventory.stockValuation")} <b className="text-slate-800">{valuation.data ?? "…"}</b>
           </span>
         </div>
 
@@ -64,15 +91,16 @@ export default function Inventory() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-200">
-                <th className="px-2 py-2.5">Product</th>
-                <th className="px-2 py-2.5">SKU</th>
-                <th className="px-2 py-2.5">On hand</th>
-                <th className="px-2 py-2.5">Unit</th>
-                <th className="px-2 py-2.5">Low-stock at</th>
+                <th className="px-2 py-2.5">{t("inventory.product")}</th>
+                <th className="px-2 py-2.5">{t("inventory.sku")}</th>
+                <th className="px-2 py-2.5">{t("inventory.initialStockCol")}</th>
+                <th className="px-2 py-2.5">{t("inventory.onHand")}</th>
+                <th className="px-2 py-2.5">{t("inventory.unit")}</th>
+                <th className="px-2 py-2.5">{t("inventory.lowStockAt")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {levels.data?.map((l) => {
+              {pageItems.map((l) => {
                 // 0 is the shop opting out of the warning, not a threshold an
                 // out-of-stock item permanently sits on.
                 const low = Number(l.low_stock_at) > 0 && Number(l.on_hand) <= Number(l.low_stock_at);
@@ -86,6 +114,7 @@ export default function Inventory() {
                   >
                     <td className="px-2 py-2.5 text-slate-800">{l.product_name}</td>
                     <td className="px-2 py-2.5 text-slate-500">{l.sku ?? "—"}</td>
+                    <td className="px-2 py-2.5 text-slate-500">{l.initial_stock}</td>
                     <td className={`px-2 py-2.5 font-medium ${low ? "text-amber-600" : "text-slate-800"}`}>
                       {l.on_hand}
                     </td>
@@ -96,20 +125,21 @@ export default function Inventory() {
                   </tr>
                 );
               })}
-              {levels.data?.length === 0 && (
+              {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-2 py-10 text-center text-slate-400">Nothing to show.</td>
+                  <td colSpan={6} className="px-2 py-10 text-center text-slate-400">{t("inventory.nothingToShow")}</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+        <Pagination page={safePage} totalPages={totalPages} totalItems={filtered.length} pageSize={15} onPageChange={setPage} />
       </div>
 
       <div className="flex flex-col gap-5">
         <div className="card p-6">
           <h2 className="mb-4 text-sm font-semibold text-brand-700">
-            {selected ? "Adjust stock" : "Select a product"}
+            {selected ? t("inventory.adjustStock") : t("inventory.selectProduct")}
           </h2>
           {selected && (
             <form
@@ -120,13 +150,14 @@ export default function Inventory() {
               }}
             >
               <select className="select" value={mode} onChange={(e) => setMode(e.target.value as "opening" | "adjustment")}>
-                <option value="adjustment">Stock adjustment (in/out)</option>
-                <option value="opening">Opening stock (once only)</option>
+                <option value="adjustment">{t("inventory.stockAdjustment")}</option>
+                <option value="opening">{t("inventory.openingStock")}</option>
               </select>
+              <p className="text-xs text-slate-500">{t("inventory.restockHint")}</p>
               <input
                 className="field"
                 type="number" step="0.001"
-                placeholder={mode === "adjustment" ? "Signed quantity, e.g. -2 or 5" : "Quantity"}
+                placeholder={mode === "adjustment" ? t("inventory.signedQtyPlaceholder") : t("inventory.quantityPlaceholder")}
                 value={qty}
                 onChange={(e) => setQty(e.target.value)}
                 required
@@ -134,7 +165,7 @@ export default function Inventory() {
               {mode === "adjustment" && (
                 <input
                   className="field"
-                  placeholder="Reason *"
+                  placeholder={t("inventory.reasonPlaceholder")}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   required
@@ -142,7 +173,7 @@ export default function Inventory() {
               )}
               {error && <p className="text-sm text-amber-600">{error}</p>}
               <button type="submit" className="btn-primary w-full" disabled={apply.isPending}>
-                {apply.isPending ? "Saving…" : "Apply"}
+                {apply.isPending ? t("common.saving") : t("inventory.apply")}
               </button>
             </form>
           )}
@@ -150,7 +181,7 @@ export default function Inventory() {
 
         {selected && (
           <div className="card p-6">
-            <h2 className="mb-4 text-sm font-semibold text-brand-700">Movement history</h2>
+            <h2 className="mb-4 text-sm font-semibold text-brand-700">{t("inventory.movementHistory")}</h2>
             <ul className="space-y-2 text-sm text-slate-600 max-h-80 overflow-y-auto">
               {movements.data?.map((m) => (
                 <li key={m.id} className="border-b border-slate-100 pb-2">
@@ -162,7 +193,7 @@ export default function Inventory() {
                   {m.created_by_name && <span className="text-slate-400"> ({m.created_by_name})</span>}
                 </li>
               ))}
-              {movements.data?.length === 0 && <li className="text-slate-400">No movements yet.</li>}
+              {movements.data?.length === 0 && <li className="text-slate-400">{t("inventory.noMovementsYet")}</li>}
             </ul>
           </div>
         )}

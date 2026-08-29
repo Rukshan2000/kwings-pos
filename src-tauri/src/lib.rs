@@ -1,21 +1,59 @@
+pub mod auth;
 pub mod db;
 pub mod domain;
 pub mod catalogue;
 pub mod inventory;
+pub mod loyalty;
 pub mod purchasing;
 pub mod pos;
+pub mod reconciliation;
+pub mod reports;
+pub mod returns;
 mod printing;
 
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 use db::{AppDb, BootstrapError, Db};
+
+/// Opens the customer-facing display, or focuses it if a cashier already has
+/// it open — a second click should not spawn a second window. It loads the
+/// same SPA bundle as the till; `main.tsx` picks which tree to render by
+/// checking the window's own label, so no separate route or HTML entry is
+/// needed.
+#[tauri::command]
+async fn open_customer_display(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window("customer") {
+        win.show().map_err(|e| e.to_string())?;
+        win.set_focus().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    WebviewWindowBuilder::new(&app, "customer", WebviewUrl::App("index.html".into()))
+        .title("Customer Display")
+        .inner_size(1024.0, 700.0)
+        .min_inner_size(640.0, 480.0)
+        .build()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(AppDb::empty())
         .manage(BootstrapError::empty())
+        .manage(auth::SessionState::empty())
         .invoke_handler(tauri::generate_handler![
+            open_customer_display,
+            auth::login,
+            auth::logout,
+            auth::current_user,
+            auth::change_password,
+            auth::list_users,
+            auth::create_user,
+            auth::set_user_role,
+            auth::set_user_active,
+            auth::reset_user_password,
             printing::list_printers,
             printing::print_raw,
             db::commands::db_status,
@@ -23,10 +61,14 @@ pub fn run() {
             db::commands::backup_now,
             catalogue::list_categories,
             catalogue::create_category,
+            catalogue::update_category_color,
+            catalogue::archive_category,
             catalogue::list_brands,
             catalogue::create_brand,
+            catalogue::archive_brand,
             catalogue::list_units,
             catalogue::create_unit,
+            catalogue::archive_unit,
             catalogue::list_products,
             catalogue::get_product,
             catalogue::create_product,
@@ -42,8 +84,14 @@ pub fn run() {
             inventory::stock_valuation,
             inventory::record_opening_stock,
             inventory::adjust_stock,
+            loyalty::list_customers,
+            loyalty::create_customer,
+            loyalty::archive_customer,
+            loyalty::loyalty_setting,
+            loyalty::update_loyalty_setting,
             purchasing::list_suppliers,
             purchasing::create_supplier,
+            purchasing::archive_supplier,
             purchasing::list_purchases,
             purchasing::get_purchase,
             purchasing::create_purchase,
@@ -56,6 +104,20 @@ pub fn run() {
             pos::cancel_held_sale,
             pos::complete_sale,
             pos::sale_receipt,
+            reports::revenue_report,
+            reports::sales_by_product,
+            reports::profit_summary,
+            reports::payment_breakdown,
+            reports::purchases_report,
+            reports::stock_summary,
+            reports::sales_by_cashier,
+            reports::my_sales,
+            reconciliation::daily_reconciliation,
+            reconciliation::save_opening_count,
+            reconciliation::save_closing_count,
+            reconciliation::list_reconciliations,
+            returns::find_sale_for_return,
+            returns::create_return,
         ])
         .setup(|app| {
             let handle = app.handle().clone();

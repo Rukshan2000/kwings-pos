@@ -118,7 +118,7 @@ jobs:
           # NSIS records it under the uninstall key, and reading it back is also a
           # check that the install actually completed. A silent NSIS install can
           # also return before its work is flushed, so poll rather than test once.
-          $key = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Green Plus POS"
+          $key = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\POS MASTER"
           $installDir = $null
           $deadline = (Get-Date).AddSeconds(120)
           while (-not $installDir -and (Get-Date) -lt $deadline) {
