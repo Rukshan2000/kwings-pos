@@ -37,11 +37,11 @@ function DenominationGrid({
   return (
     <div className="grid grid-cols-3 gap-3">
       {DENOMINATIONS.map((v) => (
-        <div key={v} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2 py-1.5">
-          <span className="w-14 shrink-0 text-sm font-medium text-slate-600">{v}</span>
+        <div key={v} className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1.5">
+          <span className="w-14 shrink-0 text-sm font-medium text-slate-600 dark:text-slate-300">{v}</span>
           <button
             type="button"
-            className="h-7 w-7 shrink-0 rounded-md border border-slate-200 text-sm font-semibold text-slate-500 hover:bg-slate-100 active:bg-slate-200"
+            className="h-7 w-7 shrink-0 rounded-md border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 active:bg-slate-200"
             onClick={() => step(v, -1)}
           >
             −
@@ -55,7 +55,7 @@ function DenominationGrid({
           />
           <button
             type="button"
-            className="h-7 w-7 shrink-0 rounded-md border border-slate-200 text-sm font-semibold text-slate-500 hover:bg-slate-100 active:bg-slate-200"
+            className="h-7 w-7 shrink-0 rounded-md border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 active:bg-slate-200"
             onClick={() => step(v, 1)}
           >
             +
@@ -105,7 +105,7 @@ export default function Reconciliation() {
                 if (tb.key === "closing" && date > todayIso()) setDate(todayIso());
               }}
               className={`rounded-lg px-3.5 py-2 text-sm font-medium transition-colors duration-150 ${
-                tab === tb.key ? "bg-brand-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+                tab === tb.key ? "bg-brand-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
               }`}
             >
               {tb.label}
@@ -113,7 +113,7 @@ export default function Reconciliation() {
           ))}
         </div>
         {tab !== "summary" && (
-          <div className="ml-auto flex items-center gap-1.5 text-sm text-slate-500">
+          <div className="ml-auto flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
             {t("reconciliation.date")}
             <DatePicker value={date} onChange={setDate} max={dateMax} />
           </div>
@@ -129,10 +129,10 @@ export default function Reconciliation() {
 
 function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 p-4">
-      <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-slate-800">{value}</p>
-      {hint && <p className="mt-0.5 text-xs text-slate-400">{hint}</p>}
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-1 text-xl font-semibold text-slate-800 dark:text-slate-100">{value}</p>
+      {hint && <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{hint}</p>}
     </div>
   );
 }
@@ -177,7 +177,7 @@ function OpeningTab({ date, data }: { date: string; data: DailyReconciliation | 
     <div className="card p-6 space-y-5">
       <div>
         <h2 className="text-sm font-semibold text-brand-700">{t("reconciliation.openingCash")}</h2>
-        <p className="mt-1 text-xs text-slate-400">{t("reconciliation.openingCashHint")}</p>
+        <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{t("reconciliation.openingCashHint")}</p>
       </div>
 
       {alreadySaved && (
@@ -188,8 +188,8 @@ function OpeningTab({ date, data }: { date: string; data: DailyReconciliation | 
 
       <DenominationGrid counts={counts} onChange={setCounts} />
 
-      <p className="text-sm text-slate-500">
-        {t("reconciliation.openingCashTotal")} <b className="text-slate-800">{lkr(openingCash)}</b>
+      <p className="text-sm text-slate-500 dark:text-slate-400">
+        {t("reconciliation.openingCashTotal")} <b className="text-slate-800 dark:text-slate-100">{lkr(openingCash)}</b>
       </p>
 
       <button type="button" className="btn-primary" disabled={save.isPending} onClick={() => save.mutate()}>
@@ -271,12 +271,12 @@ function ClosingTab({ date, data }: { date: string; data: DailyReconciliation | 
             <h3 className="label mb-2">{t("reconciliation.otherMethods")}</h3>
             <div className="space-y-2">
               {data.other_methods.map((m) => (
-                <div key={m.method} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                  <span className="text-sm font-medium capitalize text-slate-700">{m.method.replace("_", " ")}</span>
-                  <span className="text-sm text-slate-600">
+                <div key={m.method} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2">
+                  <span className="text-sm font-medium capitalize text-slate-700 dark:text-slate-200">{m.method.replace("_", " ")}</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-300">
                     {lkr(Number(m.expected))}
                     {Number(m.refunds) > 0 && (
-                      <span className="ml-1.5 text-xs text-slate-400">
+                      <span className="ml-1.5 text-xs text-slate-400 dark:text-slate-500">
                         ({t("reconciliation.afterRefunds", { amount: lkr(Number(m.refunds)) })})
                       </span>
                     )}
@@ -295,23 +295,23 @@ function ClosingTab({ date, data }: { date: string; data: DailyReconciliation | 
 
       <div className="card p-6 space-y-3">
         <h2 className="text-sm font-semibold text-brand-700">{t("reconciliation.summary")}</h2>
-        <p className="flex justify-between text-sm text-slate-600">
+        <p className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
           <span>{t("reconciliation.openingCash")}</span>
-          <span className="font-medium text-slate-800">{lkr(openingCash)}</span>
+          <span className="font-medium text-slate-800 dark:text-slate-100">{lkr(openingCash)}</span>
         </p>
-        <p className="flex justify-between text-sm text-slate-600">
+        <p className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
           <span>{t("reconciliation.countedCash")}</span>
-          <span className="font-medium text-slate-800">{lkr(countedCash)}</span>
+          <span className="font-medium text-slate-800 dark:text-slate-100">{lkr(countedCash)}</span>
         </p>
-        <p className="flex justify-between text-sm text-slate-600">
+        <p className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
           <span>{t("reconciliation.expectedCash")}</span>
-          <span className="font-medium text-slate-800">{lkr(expectedCash)}</span>
+          <span className="font-medium text-slate-800 dark:text-slate-100">{lkr(expectedCash)}</span>
         </p>
-        <p className="flex justify-between border-t border-slate-100 pt-3 text-sm font-medium">
-          <span className={variance === 0 ? "text-slate-600" : variance > 0 ? "text-emerald-600" : "text-amber-600"}>
+        <p className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-3 text-sm font-medium">
+          <span className={variance === 0 ? "text-slate-600 dark:text-slate-300" : variance > 0 ? "text-emerald-600" : "text-amber-600"}>
             {variance === 0 ? t("reconciliation.balanced") : variance > 0 ? t("reconciliation.over") : t("reconciliation.short")}
           </span>
-          <span className={variance === 0 ? "text-slate-800" : variance > 0 ? "text-emerald-600" : "text-amber-600"}>
+          <span className={variance === 0 ? "text-slate-800 dark:text-slate-100" : variance > 0 ? "text-emerald-600" : "text-amber-600"}>
             {lkr(Math.abs(variance))}
           </span>
         </p>
@@ -341,7 +341,7 @@ function SummaryTab() {
     <div className="card p-6">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h2 className="text-sm font-semibold text-brand-700">{t("reconciliation.tabs.summary")}</h2>
-        <div className="ml-auto flex items-center gap-2 text-sm text-slate-500">
+        <div className="ml-auto flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
           {t("reports.from")} <DatePicker value={from} onChange={setFrom} max={to} />
           {t("reports.to")} <DatePicker value={to} onChange={setTo} min={from} max={todayIso()} />
         </div>
@@ -350,7 +350,7 @@ function SummaryTab() {
       <div className="overflow-x-auto -mx-2">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-200">
+            <tr className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
               <th className="px-2 py-2.5">{t("reconciliation.date")}</th>
               <th className="px-2 py-2.5">{t("reconciliation.openingCash")}</th>
               <th className="px-2 py-2.5">{t("reconciliation.countedCash")}</th>
@@ -360,26 +360,26 @@ function SummaryTab() {
               <th className="px-2 py-2.5">{t("reconciliation.note")}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {pageItems.map((r) => {
               const variance = Number(r.variance);
               return (
                 <tr key={r.business_date}>
-                  <td className="px-2 py-2.5 text-slate-800">{r.business_date}</td>
-                  <td className="px-2 py-2.5 text-slate-500">{lkr(Number(r.opening_cash))}</td>
-                  <td className="px-2 py-2.5 text-slate-500">{lkr(Number(r.counted_cash))}</td>
-                  <td className="px-2 py-2.5 text-slate-500">{lkr(Number(r.expected_cash))}</td>
-                  <td className={`px-2 py-2.5 font-medium ${variance === 0 ? "text-slate-800" : variance > 0 ? "text-emerald-600" : "text-amber-600"}`}>
+                  <td className="px-2 py-2.5 text-slate-800 dark:text-slate-100">{r.business_date}</td>
+                  <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{lkr(Number(r.opening_cash))}</td>
+                  <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{lkr(Number(r.counted_cash))}</td>
+                  <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{lkr(Number(r.expected_cash))}</td>
+                  <td className={`px-2 py-2.5 font-medium ${variance === 0 ? "text-slate-800 dark:text-slate-100" : variance > 0 ? "text-emerald-600" : "text-amber-600"}`}>
                     {variance === 0 ? lkr(0) : `${variance > 0 ? "+" : ""}${lkr(variance)}`}
                   </td>
-                  <td className="px-2 py-2.5 text-slate-500">{r.created_by_name ?? "—"}</td>
-                  <td className="px-2 py-2.5 text-slate-500">{r.note ?? "—"}</td>
+                  <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{r.created_by_name ?? "—"}</td>
+                  <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{r.note ?? "—"}</td>
                 </tr>
               );
             })}
             {(history.data?.length ?? 0) === 0 && (
               <tr>
-                <td colSpan={7} className="px-2 py-10 text-center text-slate-400">{t("reconciliation.noHistory")}</td>
+                <td colSpan={7} className="px-2 py-10 text-center text-slate-400 dark:text-slate-500">{t("reconciliation.noHistory")}</td>
               </tr>
             )}
           </tbody>

@@ -27,7 +27,7 @@ export default function Pagination({
   const end = Math.min(page * pageSize, totalItems);
 
   return (
-    <div className="mt-3 flex items-center justify-between text-sm text-slate-500">
+    <div className="mt-3 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
       <span>
         {t("pagination.range", { start, end, total: totalItems })}
       </span>
@@ -40,7 +40,7 @@ export default function Pagination({
         >
           {t("pagination.prev")}
         </button>
-        <span className="px-2 text-xs text-slate-500">
+        <span className="px-2 text-xs text-slate-500 dark:text-slate-400">
           {t("pagination.pageOf", { page, totalPages })}
         </span>
         <button

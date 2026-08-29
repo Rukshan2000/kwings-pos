@@ -140,8 +140,8 @@ export default function Products() {
             type="button"
             className={`shrink-0 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors ${
               showArchived
-                ? "bg-slate-900 text-white"
-                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                ? "bg-slate-900 dark:bg-brand-600 text-white"
+                : "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
             }`}
             onClick={() => {
               setShowArchived((v) => !v);
@@ -160,7 +160,7 @@ export default function Products() {
         <div className="overflow-x-auto -mx-2">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-200">
+              <tr className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                 <th className="px-2 py-2.5">{t("products.name")}</th>
                 <th className="px-2 py-2.5">{t("products.sku")}</th>
                 <th className="px-2 py-2.5">{t("products.unit")}</th>
@@ -169,20 +169,20 @@ export default function Products() {
                 <th className="px-2 py-2.5" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {pageItems.map((p) => (
                 <tr
                   key={p.id}
                   onClick={() => setSelectedId(p.id)}
                   className={`cursor-pointer transition-colors ${
-                    selectedId === p.id ? "bg-brand-50" : "hover:bg-slate-50"
+                    selectedId === p.id ? "bg-brand-50" : "hover:bg-slate-50 dark:hover:bg-slate-800"
                   }`}
                 >
-                  <td className="px-2 py-2.5 text-slate-800">{p.name}</td>
-                  <td className="px-2 py-2.5 text-slate-500">{p.sku ?? "—"}</td>
-                  <td className="px-2 py-2.5 text-slate-500">{p.base_unit_code}</td>
-                  <td className="px-2 py-2.5 text-slate-500">{p.cost_price}</td>
-                  <td className="px-2 py-2.5 font-medium text-slate-800">{p.selling_price}</td>
+                  <td className="px-2 py-2.5 text-slate-800 dark:text-slate-100">{p.name}</td>
+                  <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{p.sku ?? "—"}</td>
+                  <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{p.base_unit_code}</td>
+                  <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{p.cost_price}</td>
+                  <td className="px-2 py-2.5 font-medium text-slate-800 dark:text-slate-100">{p.selling_price}</td>
                   <td className="px-2 py-2.5">
                     <div className="flex gap-1.5 whitespace-nowrap">
                       {!showArchived && (
@@ -285,7 +285,7 @@ export default function Products() {
               ))}
               {products.data?.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-2 py-10 text-center text-slate-400">
+                  <td colSpan={6} className="px-2 py-10 text-center text-slate-400 dark:text-slate-500">
                     {showArchived ? t("products.nothingArchived") : t("products.noProductsFound")}
                   </td>
                 </tr>
@@ -387,7 +387,7 @@ function ProductFormDialog({
           <h2 className="text-sm font-semibold text-brand-700">
             {editing ? t("products.dialog.editTitle", { name: editing.name }) : t("products.dialog.newTitle")}
           </h2>
-          <button type="button" className="text-xs text-slate-400 hover:text-slate-700" onClick={onClose}>
+          <button type="button" className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200" onClick={onClose}>
             {t("common.close")}
           </button>
         </div>
@@ -485,22 +485,22 @@ function ProductFormDialog({
               value={form.low_stock_at}
               onChange={(e) => setForm({ ...form, low_stock_at: e.target.value })}
             />
-            <span className="mt-1 block text-xs text-slate-400">{t("products.dialog.lowStockHint")}</span>
+            <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">{t("products.dialog.lowStockHint")}</span>
           </label>
 
           {/* Bags and the like: sold with almost every order, so they get a
               button on the till rather than a trip through the product grid. */}
-          <label className="col-span-2 flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5">
+          <label className="col-span-2 flex items-center gap-2.5 rounded-xl border border-slate-200 dark:border-slate-700 px-3.5 py-2.5">
             <input
               type="checkbox"
-              className="h-4 w-4 rounded border-slate-300 text-brand-600"
+              className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-brand-600"
               checked={form.quick_add}
               onChange={(e) => setForm({ ...form, quick_add: e.target.checked })}
             />
-            <span className="text-sm text-slate-700">{t("products.dialog.quickAddLabel")}</span>
+            <span className="text-sm text-slate-700 dark:text-slate-200">{t("products.dialog.quickAddLabel")}</span>
             {form.quick_add && (
               <input
-                className="ml-auto w-20 rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-700"
+                className="ml-auto w-20 rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-xs text-slate-700 dark:text-slate-200"
                 type="number"
                 step="1"
                 placeholder={t("products.dialog.orderPlaceholder")}
@@ -523,7 +523,7 @@ function ProductFormDialog({
           </div>
         </form>
 
-        <p className="mt-5 border-t border-slate-100 pt-4 text-xs text-slate-400">
+        <p className="mt-5 border-t border-slate-100 dark:border-slate-800 pt-4 text-xs text-slate-400 dark:text-slate-500">
           <Trans
             i18nKey="products.dialog.masterEntriesNote"
             components={{
@@ -574,7 +574,7 @@ function ProductExtrasDialog({
       <div className="card w-full max-w-md max-h-[90vh] overflow-y-auto p-6">
         <div className="mb-4 flex items-baseline justify-between gap-3">
           <h2 className="text-sm font-semibold text-brand-700">{t("products.extras.title", { name: detail.name })}</h2>
-          <button type="button" className="text-xs text-slate-400 hover:text-slate-700" onClick={onClose}>
+          <button type="button" className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200" onClick={onClose}>
             {t("common.close")}
           </button>
         </div>
@@ -605,14 +605,14 @@ function ProductExtras({
     <div>
 
       <h3 className="label mb-2">{t("products.extras.alternateUnits")}</h3>
-      <ul className="mb-3 space-y-1 text-sm text-slate-600">
+      <ul className="mb-3 space-y-1 text-sm text-slate-600 dark:text-slate-300">
         {detail.units.map((u) => (
           <li key={u.id}>
             1 {u.unit_code} = {u.factor} {detail.base_unit_code}
-            {u.barcode && <span className="text-slate-400"> · barcode {u.barcode}</span>}
+            {u.barcode && <span className="text-slate-400 dark:text-slate-500"> · barcode {u.barcode}</span>}
           </li>
         ))}
-        {detail.units.length === 0 && <li className="text-slate-400">{t("products.extras.noneYet")}</li>}
+        {detail.units.length === 0 && <li className="text-slate-400 dark:text-slate-500">{t("products.extras.noneYet")}</li>}
       </ul>
       <form
         className="grid grid-cols-[1fr_1fr_auto] gap-2"
@@ -642,13 +642,13 @@ function ProductExtras({
       </form>
 
       <h3 className="label mb-2 mt-5">{t("products.extras.priceTiers")}</h3>
-      <ul className="mb-3 space-y-1 text-sm text-slate-600">
+      <ul className="mb-3 space-y-1 text-sm text-slate-600 dark:text-slate-300">
         {detail.price_tiers.map((pt) => (
           <li key={pt.id}>
             {pt.kind} · {pt.min_qty}+ {pt.unit_code} → {pt.price}
           </li>
         ))}
-        {detail.price_tiers.length === 0 && <li className="text-slate-400">{t("products.extras.noneYet")}</li>}
+        {detail.price_tiers.length === 0 && <li className="text-slate-400 dark:text-slate-500">{t("products.extras.noneYet")}</li>}
       </ul>
       <form
         className="grid grid-cols-2 gap-2"
@@ -732,7 +732,7 @@ function PriceOptionsDialog({
       <div className="card w-full max-w-md max-h-[90vh] overflow-y-auto p-6">
         <div className="mb-4 flex items-baseline justify-between gap-3">
           <h2 className="text-sm font-semibold text-brand-700">{t("products.priceOptionsDialog.title", { name: detail.name })}</h2>
-          <button type="button" className="text-xs text-slate-400 hover:text-slate-700" onClick={onClose}>
+          <button type="button" className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200" onClick={onClose}>
             {t("common.close")}
           </button>
         </div>
@@ -759,8 +759,8 @@ function PriceOptions({
           rather than applied by a rule — a tier fires on quantity, this fires
           on whatever the market did today. Sale price is unaffected until this
           list has a second entry: one price is still just the product's own. */}
-      <p className="mb-2 text-xs text-slate-400">{t("products.priceOptionsDialog.hint")}</p>
-      <ul className="mb-3 space-y-1 text-sm text-slate-600">
+      <p className="mb-2 text-xs text-slate-400 dark:text-slate-500">{t("products.priceOptionsDialog.hint")}</p>
+      <ul className="mb-3 space-y-1 text-sm text-slate-600 dark:text-slate-300">
         {detail.price_options.map((o) => (
           <li key={o.id} className="flex items-center justify-between gap-2">
             <span>
@@ -768,7 +768,7 @@ function PriceOptions({
             </span>
             <button
               type="button"
-              className="text-xs text-slate-400 hover:text-amber-600"
+              className="text-xs text-slate-400 dark:text-slate-500 hover:text-amber-600"
               onClick={async () => {
                 await api.deletePriceOption(detail.id, o.id);
                 onChange();
@@ -778,7 +778,7 @@ function PriceOptions({
             </button>
           </li>
         ))}
-        {detail.price_options.length === 0 && <li className="text-slate-400">{t("products.priceOptionsDialog.noneYet")}</li>}
+        {detail.price_options.length === 0 && <li className="text-slate-400 dark:text-slate-500">{t("products.priceOptionsDialog.noneYet")}</li>}
       </ul>
       <form
         className="grid grid-cols-[1fr_auto_auto] gap-2"

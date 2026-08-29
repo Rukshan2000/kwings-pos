@@ -78,23 +78,23 @@ export default function SearchableSelect({
         }}
       />
       {open && (
-        <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+        <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 py-1 shadow-lg">
           {filtered.map((o, i) => (
             <li key={o.id}>
               <button
                 type="button"
                 className={`block w-full px-3 py-1.5 text-left text-sm ${
-                  i === highlight ? "bg-brand-50 text-brand-700" : "text-slate-700 hover:bg-slate-50"
+                  i === highlight ? "bg-brand-50 text-brand-700" : "text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
                 }`}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => pick(o.id)}
               >
                 {o.label}
-                {o.sublabel && <span className="ml-1.5 text-xs text-slate-400">{o.sublabel}</span>}
+                {o.sublabel && <span className="ml-1.5 text-xs text-slate-400 dark:text-slate-500">{o.sublabel}</span>}
               </button>
             </li>
           ))}
-          {filtered.length === 0 && <li className="px-3 py-1.5 text-sm text-slate-400">{noResultsLabel}</li>}
+          {filtered.length === 0 && <li className="px-3 py-1.5 text-sm text-slate-400 dark:text-slate-500">{noResultsLabel}</li>}
         </ul>
       )}
     </div>

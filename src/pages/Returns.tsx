@@ -91,32 +91,32 @@ export default function Returns() {
 
         {sale && (
           <>
-            <div className="text-sm text-slate-500">
+            <div className="text-sm text-slate-500 dark:text-slate-400">
               <p>
-                <span className="font-medium text-slate-800">{sale.invoice_number}</span>
+                <span className="font-medium text-slate-800 dark:text-slate-100">{sale.invoice_number}</span>
                 {sale.customer_name && ` · ${sale.customer_name}`}
               </p>
-              {sale.completed_at && <p className="text-xs text-slate-400">{new Date(sale.completed_at).toLocaleString()}</p>}
+              {sale.completed_at && <p className="text-xs text-slate-400 dark:text-slate-500">{new Date(sale.completed_at).toLocaleString()}</p>}
             </div>
 
             <div className="overflow-x-auto -mx-2">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-200">
+                  <tr className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                     <th className="px-2 py-2.5">{t("returns.product")}</th>
                     <th className="px-2 py-2.5">{t("returns.sold")}</th>
                     <th className="px-2 py-2.5">{t("returns.alreadyReturned")}</th>
                     <th className="px-2 py-2.5">{t("returns.returnQty")}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {sale.lines.map((l) => {
                     const returnable = Number(l.quantity) - Number(l.already_returned);
                     return (
                       <tr key={l.sale_line_id}>
-                        <td className="px-2 py-2.5 text-slate-800">{l.product_name}</td>
-                        <td className="px-2 py-2.5 text-slate-500">{l.quantity} {l.unit_code}</td>
-                        <td className="px-2 py-2.5 text-slate-500">{l.already_returned}</td>
+                        <td className="px-2 py-2.5 text-slate-800 dark:text-slate-100">{l.product_name}</td>
+                        <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{l.quantity} {l.unit_code}</td>
+                        <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{l.already_returned}</td>
                         <td className="px-2 py-2.5">
                           <input
                             type="number" min="0" step="0.001" max={returnable}
@@ -156,8 +156,8 @@ export default function Returns() {
         <div className="card p-6 space-y-3">
           <h2 className="text-sm font-semibold text-brand-700">{t("returns.summary")}</h2>
           <p className="flex justify-between text-sm font-medium">
-            <span className="text-slate-600">{t("returns.refundTotal")}</span>
-            <span className="text-slate-800">{lkr(total)}</span>
+            <span className="text-slate-600 dark:text-slate-300">{t("returns.refundTotal")}</span>
+            <span className="text-slate-800 dark:text-slate-100">{lkr(total)}</span>
           </p>
           <button
             type="button"

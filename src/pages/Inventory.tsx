@@ -69,10 +69,10 @@ export default function Inventory() {
                 setPage(1);
               }}
             />
-            <label className="flex items-center gap-2 text-sm text-slate-600">
+            <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
               <input
                 type="checkbox"
-                className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-400"
+                className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-brand-600 focus:ring-brand-400"
                 checked={lowOnly}
                 onChange={(e) => {
                   setLowOnly(e.target.checked);
@@ -82,15 +82,15 @@ export default function Inventory() {
               {t("inventory.lowStockOnly")}
             </label>
           </div>
-          <span className="text-sm text-slate-500">
-            {t("inventory.stockValuation")} <b className="text-slate-800">{valuation.data ?? "…"}</b>
+          <span className="text-sm text-slate-500 dark:text-slate-400">
+            {t("inventory.stockValuation")} <b className="text-slate-800 dark:text-slate-100">{valuation.data ?? "…"}</b>
           </span>
         </div>
 
         <div className="overflow-x-auto -mx-2">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-200">
+              <tr className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                 <th className="px-2 py-2.5">{t("inventory.product")}</th>
                 <th className="px-2 py-2.5">{t("inventory.sku")}</th>
                 <th className="px-2 py-2.5">{t("inventory.initialStockCol")}</th>
@@ -99,7 +99,7 @@ export default function Inventory() {
                 <th className="px-2 py-2.5">{t("inventory.lowStockAt")}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {pageItems.map((l) => {
                 // 0 is the shop opting out of the warning, not a threshold an
                 // out-of-stock item permanently sits on.
@@ -109,17 +109,17 @@ export default function Inventory() {
                     key={l.product_id}
                     onClick={() => setSelected(l.product_id)}
                     className={`cursor-pointer transition-colors ${
-                      selected === l.product_id ? "bg-brand-50" : "hover:bg-slate-50"
+                      selected === l.product_id ? "bg-brand-50" : "hover:bg-slate-50 dark:hover:bg-slate-800"
                     }`}
                   >
-                    <td className="px-2 py-2.5 text-slate-800">{l.product_name}</td>
-                    <td className="px-2 py-2.5 text-slate-500">{l.sku ?? "—"}</td>
-                    <td className="px-2 py-2.5 text-slate-500">{l.initial_stock}</td>
-                    <td className={`px-2 py-2.5 font-medium ${low ? "text-amber-600" : "text-slate-800"}`}>
+                    <td className="px-2 py-2.5 text-slate-800 dark:text-slate-100">{l.product_name}</td>
+                    <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{l.sku ?? "—"}</td>
+                    <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{l.initial_stock}</td>
+                    <td className={`px-2 py-2.5 font-medium ${low ? "text-amber-600" : "text-slate-800 dark:text-slate-100"}`}>
                       {l.on_hand}
                     </td>
-                    <td className="px-2 py-2.5 text-slate-500">{l.base_unit_code}</td>
-                    <td className="px-2 py-2.5 text-slate-500">
+                    <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{l.base_unit_code}</td>
+                    <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">
                       {Number(l.low_stock_at) > 0 ? l.low_stock_at : "—"}
                     </td>
                   </tr>
@@ -127,7 +127,7 @@ export default function Inventory() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-2 py-10 text-center text-slate-400">{t("inventory.nothingToShow")}</td>
+                  <td colSpan={6} className="px-2 py-10 text-center text-slate-400 dark:text-slate-500">{t("inventory.nothingToShow")}</td>
                 </tr>
               )}
             </tbody>
@@ -153,7 +153,7 @@ export default function Inventory() {
                 <option value="adjustment">{t("inventory.stockAdjustment")}</option>
                 <option value="opening">{t("inventory.openingStock")}</option>
               </select>
-              <p className="text-xs text-slate-500">{t("inventory.restockHint")}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{t("inventory.restockHint")}</p>
               <input
                 className="field"
                 type="number" step="0.001"
@@ -182,18 +182,18 @@ export default function Inventory() {
         {selected && (
           <div className="card p-6">
             <h2 className="mb-4 text-sm font-semibold text-brand-700">{t("inventory.movementHistory")}</h2>
-            <ul className="space-y-2 text-sm text-slate-600 max-h-80 overflow-y-auto">
+            <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-300 max-h-80 overflow-y-auto">
               {movements.data?.map((m) => (
-                <li key={m.id} className="border-b border-slate-100 pb-2">
-                  <span className="text-slate-400">{new Date(m.created_at).toLocaleString()}</span> · {m.reason} ·{" "}
+                <li key={m.id} className="border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <span className="text-slate-400 dark:text-slate-500">{new Date(m.created_at).toLocaleString()}</span> · {m.reason} ·{" "}
                   <b className={Number(m.quantity) > 0 ? "text-emerald-600" : "text-amber-600"}>
                     {Number(m.quantity) > 0 ? `+${m.quantity}` : m.quantity}
                   </b>
                   {m.note && ` — ${m.note}`}
-                  {m.created_by_name && <span className="text-slate-400"> ({m.created_by_name})</span>}
+                  {m.created_by_name && <span className="text-slate-400 dark:text-slate-500"> ({m.created_by_name})</span>}
                 </li>
               ))}
-              {movements.data?.length === 0 && <li className="text-slate-400">{t("inventory.noMovementsYet")}</li>}
+              {movements.data?.length === 0 && <li className="text-slate-400 dark:text-slate-500">{t("inventory.noMovementsYet")}</li>}
             </ul>
           </div>
         )}

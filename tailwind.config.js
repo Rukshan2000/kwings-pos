@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: "class",
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   // The receipt is raw print CSS with fixed millimetre widths for an 80mm
   // thermal printer (see styles.css) — Tailwind's preflight reset must never

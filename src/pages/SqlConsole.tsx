@@ -95,7 +95,7 @@ ORDER BY revenue DESC`,
 ];
 
 function CellValue({ value }: { value: unknown }) {
-  if (value === null || value === undefined) return <span className="text-slate-300">null</span>;
+  if (value === null || value === undefined) return <span className="text-slate-300 dark:text-slate-600">null</span>;
   if (typeof value === "object") return <span>{JSON.stringify(value)}</span>;
   return <span>{String(value)}</span>;
 }
@@ -148,17 +148,17 @@ export default function SqlConsole() {
 
   if (user && user.role !== "admin") {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50 p-6 text-center">
-        <p className="text-sm text-slate-500">{t("settings.sqlConsole.adminOnly")}</p>
+      <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-800 p-6 text-center">
+        <p className="text-sm text-slate-500 dark:text-slate-400">{t("settings.sqlConsole.adminOnly")}</p>
       </div>
     );
   }
 
   if (!unlocked) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50 p-6">
+      <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-800 p-6">
         <form
-          className="w-full max-w-sm space-y-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="w-full max-w-sm space-y-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 shadow-sm"
           onSubmit={(e) => {
             e.preventDefault();
             if (password === CONSOLE_PASSWORD) {
@@ -169,8 +169,8 @@ export default function SqlConsole() {
             }
           }}
         >
-          <h1 className="text-lg font-semibold text-slate-800">{t("settings.sqlConsole.title")}</h1>
-          <p className="text-sm text-slate-500">{t("settings.sqlConsole.locked")}</p>
+          <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">{t("settings.sqlConsole.title")}</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{t("settings.sqlConsole.locked")}</p>
           <input
             type="password"
             className="field"
@@ -189,10 +189,10 @@ export default function SqlConsole() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 bg-white">
-        <div className="border-b border-slate-100 p-3">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-800">
+      <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+        <div className="border-b border-slate-100 dark:border-slate-800 p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
             {t("settings.sqlConsole.tables")}
           </p>
           <input
@@ -211,25 +211,25 @@ export default function SqlConsole() {
                 className={`flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs transition-colors ${
                   browsing?.table === tbl.name
                     ? "bg-brand-50 font-medium text-brand-700"
-                    : "text-slate-600 hover:bg-slate-50"
+                    : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                 }`}
               >
                 <span className="truncate">{tbl.name}</span>
-                <span className="shrink-0 text-slate-300">{Math.round(tbl.row_estimate)}</span>
+                <span className="shrink-0 text-slate-300 dark:text-slate-600">{Math.round(tbl.row_estimate)}</span>
               </button>
             </li>
           ))}
-          {tables.isLoading && <li className="px-3 py-2 text-xs text-slate-400">{t("common.loading")}</li>}
+          {tables.isLoading && <li className="px-3 py-2 text-xs text-slate-400 dark:text-slate-500">{t("common.loading")}</li>}
           {visibleTables?.length === 0 && (
-            <li className="px-3 py-2 text-xs text-slate-400">{t("masterEntries.noneYet")}</li>
+            <li className="px-3 py-2 text-xs text-slate-400 dark:text-slate-500">{t("masterEntries.noneYet")}</li>
           )}
         </ul>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden p-5">
         <div>
-          <h1 className="text-lg font-semibold text-slate-800">{t("settings.sqlConsole.title")}</h1>
-          <p className="text-xs text-slate-400">{t("settings.sqlConsole.hintCrud")}</p>
+          <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">{t("settings.sqlConsole.title")}</h1>
+          <p className="text-xs text-slate-400 dark:text-slate-500">{t("settings.sqlConsole.hintCrud")}</p>
         </div>
 
         {browsing && (
@@ -243,7 +243,7 @@ export default function SqlConsole() {
             <span className="ml-auto flex items-center gap-1.5">
               <button
                 type="button"
-                className="rounded-md border border-brand-200 bg-white px-2 py-0.5 font-medium disabled:opacity-40"
+                className="rounded-md border border-brand-200 bg-white dark:bg-slate-900 px-2 py-0.5 font-medium disabled:opacity-40"
                 disabled={browsing.offset === 0 || run.isPending}
                 onClick={() => openTable(browsing.table, Math.max(0, browsing.offset - PAGE_SIZE))}
               >
@@ -252,7 +252,7 @@ export default function SqlConsole() {
               <span>{browsing.offset + 1}–{browsing.offset + (run.data?.rows.length ?? 0)}</span>
               <button
                 type="button"
-                className="rounded-md border border-brand-200 bg-white px-2 py-0.5 font-medium disabled:opacity-40"
+                className="rounded-md border border-brand-200 bg-white dark:bg-slate-900 px-2 py-0.5 font-medium disabled:opacity-40"
                 disabled={(run.data?.rows.length ?? 0) < PAGE_SIZE || run.isPending}
                 onClick={() => openTable(browsing.table, browsing.offset + PAGE_SIZE)}
               >
@@ -267,7 +267,7 @@ export default function SqlConsole() {
             <button
               key={ex.label}
               type="button"
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
               onClick={() => {
                 setBrowsing(null);
                 setSql(ex.sql);
@@ -319,12 +319,12 @@ export default function SqlConsole() {
           </button>
         )}
         {run.data && run.data.rows_affected !== null && (
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-slate-400 dark:text-slate-500">
             {t("settings.sqlConsole.rowsAffected", { count: run.data.rows_affected })}
           </span>
         )}
         {run.data && run.data.rows_affected === null && (
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-slate-400 dark:text-slate-500">
             {t("settings.sqlConsole.rowCount", { count: run.data.rows.length })}
           </span>
         )}
@@ -342,23 +342,23 @@ export default function SqlConsole() {
         </p>
       )}
 
-      <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-slate-200 bg-white">
+      <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
         {run.data && run.data.rows.length > 0 && (
           <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-slate-50">
+            <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800">
               <tr>
                 {run.data.columns.map((c) => (
-                  <th key={c} className="whitespace-nowrap px-2.5 py-2 text-left font-semibold text-slate-600">
+                  <th key={c} className="whitespace-nowrap px-2.5 py-2 text-left font-semibold text-slate-600 dark:text-slate-300">
                     {c}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {run.data.rows.map((row, i) => (
                 <tr key={i}>
                   {run.data!.columns.map((c) => (
-                    <td key={c} className="whitespace-nowrap px-2.5 py-1.5 text-slate-700">
+                    <td key={c} className="whitespace-nowrap px-2.5 py-1.5 text-slate-700 dark:text-slate-200">
                       <CellValue value={(row as Record<string, unknown>)[c]} />
                     </td>
                   ))}
@@ -368,15 +368,15 @@ export default function SqlConsole() {
           </table>
         )}
         {run.data && run.data.rows.length === 0 && run.data.rows_affected === null && (
-          <p className="p-4 text-sm text-slate-400">{t("settings.sqlConsole.noRows")}</p>
+          <p className="p-4 text-sm text-slate-400 dark:text-slate-500">{t("settings.sqlConsole.noRows")}</p>
         )}
         {run.data && run.data.rows.length === 0 && run.data.rows_affected !== null && (
-          <p className="p-4 text-sm text-slate-400">
+          <p className="p-4 text-sm text-slate-400 dark:text-slate-500">
             {t("settings.sqlConsole.rowsAffected", { count: run.data.rows_affected })}
           </p>
         )}
         {!run.data && !run.isError && (
-          <p className="p-4 text-sm text-slate-400">{t("settings.sqlConsole.runToSeeResults")}</p>
+          <p className="p-4 text-sm text-slate-400 dark:text-slate-500">{t("settings.sqlConsole.runToSeeResults")}</p>
         )}
         </div>
       </div>

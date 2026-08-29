@@ -79,10 +79,10 @@ export default function PaymentDialog({
     >
       <div className="card w-full max-w-md p-5">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold text-slate-700">{t("paymentDialog.takePayment")}</h2>
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t("paymentDialog.takePayment")}</h2>
           <button
             type="button"
-            className="text-xs text-slate-400 hover:text-slate-700 disabled:opacity-40"
+            className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-40"
             onClick={onClose}
             disabled={pending}
           >
@@ -90,10 +90,10 @@ export default function PaymentDialog({
           </button>
         </div>
 
-        <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3">
+        <div className="mt-4 rounded-xl bg-slate-50 dark:bg-slate-800 px-4 py-3">
           <div className="flex items-baseline justify-between">
-            <span className="text-sm text-slate-500">{t("paymentDialog.toPay")}</span>
-            <span className="text-2xl font-semibold text-slate-900">{lkr(total)}</span>
+            <span className="text-sm text-slate-500 dark:text-slate-400">{t("paymentDialog.toPay")}</span>
+            <span className="text-2xl font-semibold text-slate-900 dark:text-slate-50">{lkr(total)}</span>
           </div>
         </div>
 
@@ -105,7 +105,7 @@ export default function PaymentDialog({
           }}
         >
           {payments.map((p, i) => (
-            <div className="rounded-xl border border-slate-200 p-2.5" key={i}>
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-2.5" key={i}>
               {/* Buttons rather than a select: on a touch screen a dropdown is
                   two taps and a small target, and the method is chosen on every
                   single sale. All four stay visible so the choice is one tap. */}
@@ -126,7 +126,7 @@ export default function PaymentDialog({
                       className={`rounded-lg px-1 py-2.5 text-xs font-medium leading-tight transition-colors ${
                         active
                           ? "bg-brand-600 text-white shadow-sm"
-                          : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                          : "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                       }`}
                     >
                       {t(`paymentDialog.methods.${m.key}`)}
@@ -150,7 +150,7 @@ export default function PaymentDialog({
                 {payments.length > 1 && (
                   <button
                     type="button"
-                    className="px-2 text-slate-400 hover:text-amber-600"
+                    className="px-2 text-slate-400 dark:text-slate-500 hover:text-amber-600"
                     onClick={() => onChange(payments.filter((_, j) => j !== i))}
                     aria-label={t("paymentDialog.removeAria", { n: i + 1 })}
                   >
@@ -164,7 +164,7 @@ export default function PaymentDialog({
           <div className="flex items-center justify-between pt-1">
             <button
               type="button"
-              className="text-xs text-slate-500 hover:text-brand-700"
+              className="text-xs text-slate-500 dark:text-slate-400 hover:text-brand-700"
               onClick={() => onChange([...payments, { method: "cash", amount: "" }])}
             >
               {t("paymentDialog.splitPayment")}
@@ -172,7 +172,7 @@ export default function PaymentDialog({
             {outstanding > 0 && (
               <button
                 type="button"
-                className="text-xs text-slate-500 hover:text-brand-700"
+                className="text-xs text-slate-500 dark:text-slate-400 hover:text-brand-700"
                 // Fills the last row with what is still owed — the common case
                 // is one method covering the whole bill.
                 onClick={() =>
@@ -188,8 +188,8 @@ export default function PaymentDialog({
             )}
           </div>
 
-          <dl className="space-y-1 border-t border-slate-200 pt-3 text-sm">
-            <div className="flex justify-between text-slate-500">
+          <dl className="space-y-1 border-t border-slate-200 dark:border-slate-700 pt-3 text-sm">
+            <div className="flex justify-between text-slate-500 dark:text-slate-400">
               <dt>{t("paymentDialog.paid")}</dt>
               <dd>{lkr(paid)}</dd>
             </div>

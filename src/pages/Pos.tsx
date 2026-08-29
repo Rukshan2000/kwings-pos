@@ -498,8 +498,8 @@ export default function Pos() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-slate-800">{t("pos.newSale")}</h1>
-            <p className="text-sm text-slate-500">{shopName}</p>
+            <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">{t("pos.newSale")}</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{shopName}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -527,19 +527,19 @@ export default function Pos() {
           </div>
           <button
             type="button"
-            className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50"
+            className="shrink-0 rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-2 text-xs font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
             onClick={() => setShowAddCustomer(true)}
           >
             {t("pos.addCustomer")}
           </button>
           {selectedCustomer && (
             <>
-              <span className="shrink-0 rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-500">
+              <span className="shrink-0 rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-1 text-xs font-medium text-slate-500 dark:text-slate-400">
                 {t("pos.pointsBalance", { points: selectedCustomer.loyalty_points })}
               </span>
               <button
                 type="button"
-                className="shrink-0 text-xs text-slate-400 hover:text-slate-700"
+                className="shrink-0 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200"
                 onClick={() => setCustomerId(null)}
               >
                 {t("pos.clearCustomer")}
@@ -551,10 +551,10 @@ export default function Pos() {
         {showHeld && (
           <div className="card p-4">
             {held.data && held.data.length > 0 ? (
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-slate-100 dark:divide-slate-800">
                 {held.data.map((h) => (
                   <li key={h.id} className="flex items-center justify-between py-2 text-sm">
-                    <span className="text-slate-600">
+                    <span className="text-slate-600 dark:text-slate-300">
                       #{h.id} · {h.line_count} item(s) · {lkr(Number(h.subtotal))}
                     </span>
                     <span className="flex items-center gap-1.5">
@@ -578,7 +578,7 @@ export default function Pos() {
                           </button>
                           <button
                             type="button"
-                            className="px-1.5 text-xs text-slate-400 hover:text-slate-600"
+                            className="px-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                             onClick={() => setConfirmDiscard(null)}
                           >
                             {t("common.cancel")}
@@ -587,7 +587,7 @@ export default function Pos() {
                       ) : (
                         <button
                           type="button"
-                          className="px-1.5 text-xs text-slate-400 hover:text-amber-600"
+                          className="px-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-amber-600"
                           onClick={() => setConfirmDiscard(h.id)}
                           aria-label={t("pos.discardAria", { id: h.id })}
                         >
@@ -599,7 +599,7 @@ export default function Pos() {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-slate-400">{t("pos.noHeldSales")}</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500">{t("pos.noHeldSales")}</p>
             )}
           </div>
         )}
@@ -619,7 +619,7 @@ export default function Pos() {
             type="button"
             onClick={() => setActiveCategory(null)}
             className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
-              activeCategory === null ? "bg-slate-900 text-white" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+              activeCategory === null ? "bg-slate-900 dark:bg-brand-600 text-white" : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
             }`}
           >
             {t("pos.allProducts")}
@@ -640,10 +640,10 @@ export default function Pos() {
                 }
                 className={`rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${
                   hex
-                    ? "bg-white"
+                    ? "bg-white dark:bg-slate-900"
                     : activeCategory === c
-                      ? "bg-slate-900 text-white border-slate-900"
-                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      ? "bg-slate-900 dark:bg-brand-600 text-white border-slate-900 dark:border-brand-600"
+                      : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                 } ${activeCategory === c && hex ? "text-white" : ""}`}
               >
                 {c}
@@ -671,14 +671,14 @@ export default function Pos() {
                 disabled={outOfStock}
                 onClick={() => add(p)}
                 style={categoryColorStyle(cat)}
-                className={`relative flex flex-col overflow-hidden rounded-lg border border-l-4 bg-white p-2 text-left transition-all duration-150
+                className={`relative flex flex-col overflow-hidden rounded-lg border border-l-4 bg-white dark:bg-slate-900 p-2 text-left transition-all duration-150
                   ${categoryColorClass(cat)}
                   ${
                     outOfStock
-                      ? "border-slate-200 opacity-60 cursor-not-allowed"
+                      ? "border-slate-200 dark:border-slate-700 opacity-60 cursor-not-allowed"
                       : inCart
                         ? "border-brand-300 shadow-card ring-1 ring-brand-200"
-                        : "border-slate-200 shadow-sm hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-card"
+                        : "border-slate-200 dark:border-slate-700 shadow-sm hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-card"
                   }`}
               >
                 {inCart && (
@@ -697,18 +697,18 @@ export default function Pos() {
 
                 {/* Two lines of name, then price and stock share the last
                     line — the whole card is three lines tall. */}
-                <p className="min-h-[2rem] pr-4 text-xs font-medium leading-tight text-slate-800 line-clamp-2">
+                <p className="min-h-[2rem] pr-4 text-xs font-medium leading-tight text-slate-800 dark:text-slate-100 line-clamp-2">
                   {p.name}
                 </p>
 
                 <div className="mt-1 flex items-baseline justify-between gap-1">
-                  <span className="text-sm font-bold leading-none text-slate-900">
+                  <span className="text-sm font-bold leading-none text-slate-900 dark:text-slate-50">
                     {lkr(Number(p.selling_price))}
                   </span>
                   {onHand !== undefined && (
                     <span
                       className={`shrink-0 rounded px-1 text-[10px] font-medium leading-4 ${
-                        outOfStock ? "bg-amber-50 text-amber-700" : "text-slate-400"
+                        outOfStock ? "bg-amber-50 text-amber-700" : "text-slate-400 dark:text-slate-500"
                       }`}
                     >
                       {outOfStock ? t("pos.outOfStock") : `${onHand} ${p.base_unit_code}`}
@@ -720,7 +720,7 @@ export default function Pos() {
           })}
         </div>
         {ordered.length === 0 && (
-          <p className="py-10 text-center text-sm text-slate-400">{t("pos.noProductsMatch")}</p>
+          <p className="py-10 text-center text-sm text-slate-400 dark:text-slate-500">{t("pos.noProductsMatch")}</p>
         )}
       </div>
 
@@ -729,12 +729,12 @@ export default function Pos() {
           scrolls, which keeps the totals and Complete Sale always in view. */}
       <div className="card flex flex-col overflow-hidden xl:sticky xl:top-20 xl:h-[calc(100vh-7rem)]">
         <div className="flex items-center justify-between px-5 pt-5">
-          <h2 className="text-sm font-semibold text-slate-700">{t("pos.order", { count: cart.length })}</h2>
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t("pos.order", { count: cart.length })}</h2>
           <div className="flex items-center gap-2">
             {/* One switch for the bill: a customer is retail or wholesale, and
                 setting it per line would be a tap on every item. Flipping it
                 re-prices everything already in the cart. */}
-            <div className="flex overflow-hidden rounded-lg border border-slate-200">
+            <div className="flex overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
               {(["retail", "wholesale"] as const).map((k) => (
                 <button
                   key={k}
@@ -748,7 +748,7 @@ export default function Pos() {
                     );
                   }}
                   className={`px-2 py-1 text-[11px] font-medium capitalize transition-colors ${
-                    tierKind === k ? "bg-brand-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50"
+                    tierKind === k ? "bg-brand-600 text-white" : "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
                   }`}
                 >
                   {t(`pos.${k}`)}
@@ -756,7 +756,7 @@ export default function Pos() {
               ))}
             </div>
             {cart.length > 0 && (
-              <button type="button" className="text-xs text-slate-400 hover:text-slate-700" onClick={resetCart}>
+              <button type="button" className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200" onClick={resetCart}>
                 {t("pos.clearCart")}
               </button>
             )}
@@ -764,16 +764,16 @@ export default function Pos() {
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
-          {cart.length === 0 && <p className="py-8 text-center text-sm text-slate-400">{t("pos.noItemsYet")}</p>}
+          {cart.length === 0 && <p className="py-8 text-center text-sm text-slate-400 dark:text-slate-500">{t("pos.noItemsYet")}</p>}
           {cart.map((l) => {
             const off = lineDiscount(l);
             return (
-              <div key={l.id} className="rounded-xl border border-slate-200/80 bg-slate-50 p-3">
+              <div key={l.id} className="rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800 p-3">
                 <div className="flex items-center gap-3">
                   <div className="h-9 w-1 shrink-0 rounded-full bg-brand-500" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-800">{l.name}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{l.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       {lkr(l.price)} {t("pos.perUnit", { unit: l.units.find((u) => u.unitId === l.unitId)?.code })}
                       {l.manualBasePrice !== undefined ? (
                         <span className="ml-1 text-amber-600">
@@ -793,26 +793,26 @@ export default function Pos() {
                     <button
                       type="button"
                       onClick={() => setQty(l.id, l.qty - 1)}
-                      className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                      className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
                     >
                       −
                     </button>
-                    <span className="w-6 text-center text-sm text-slate-800">{l.qty}</span>
+                    <span className="w-6 text-center text-sm text-slate-800 dark:text-slate-100">{l.qty}</span>
                     <button
                       type="button"
                       onClick={() => setQty(l.id, l.qty + 1)}
-                      className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                      className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
                     >
                       +
                     </button>
                   </div>
                   <div className="w-20 text-right">
                     {off > 0 && (
-                      <div className="text-[11px] text-slate-400 line-through">{money(l.qty * l.price)}</div>
+                      <div className="text-[11px] text-slate-400 dark:text-slate-500 line-through">{money(l.qty * l.price)}</div>
                     )}
-                    <span className="text-sm font-semibold text-slate-900">{money(lineTotal(l))}</span>
+                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">{money(lineTotal(l))}</span>
                   </div>
-                  <button type="button" onClick={() => removeLine(l.id)} className="text-slate-400 hover:text-amber-600">
+                  <button type="button" onClick={() => removeLine(l.id)} className="text-slate-400 dark:text-slate-500 hover:text-amber-600">
                     ×
                   </button>
                 </div>
@@ -823,7 +823,7 @@ export default function Pos() {
                   {l.units.length > 1 && (
                     <button
                       type="button"
-                      className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] text-slate-600 hover:bg-slate-50"
+                      className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-1.5 py-0.5 text-[11px] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                       onClick={() => setLineOptions(l.id)}
                     >
                       {l.units.find((u) => u.unitId === l.unitId)?.code} ▾
@@ -834,7 +834,7 @@ export default function Pos() {
                     className={`rounded-md border px-1.5 py-0.5 text-[11px] ${
                       off > 0
                         ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                        : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
                     }`}
                     onClick={() => setLineOptions(l.id)}
                   >
@@ -846,8 +846,8 @@ export default function Pos() {
           })}
         </div>
 
-        <div className="space-y-1.5 border-t border-slate-200 px-5 py-4 text-sm">
-          <div className="flex justify-between text-slate-500">
+        <div className="space-y-1.5 border-t border-slate-200 dark:border-slate-700 px-5 py-4 text-sm">
+          <div className="flex justify-between text-slate-500 dark:text-slate-400">
             <span>{t("pos.subtotal")}</span>
             <span>{lkr(subtotal)}</span>
           </div>
@@ -870,7 +870,7 @@ export default function Pos() {
             ) : (
               <button
                 type="button"
-                className="text-xs text-slate-500 underline-offset-2 hover:text-brand-700 hover:underline disabled:opacity-40 disabled:no-underline"
+                className="text-xs text-slate-500 dark:text-slate-400 underline-offset-2 hover:text-brand-700 hover:underline disabled:opacity-40 disabled:no-underline"
                 disabled={!cart.length}
                 onClick={() => setBillDiscount({ kind: "percent", value: 0 })}
               >
@@ -880,13 +880,13 @@ export default function Pos() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-5 py-4">
-          <span className="text-sm font-medium text-slate-600">{t("pos.toPay")}</span>
-          <span className="text-xl font-semibold text-slate-900">{lkr(toPay)}</span>
+        <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-5 py-4">
+          <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{t("pos.toPay")}</span>
+          <span className="text-xl font-semibold text-slate-900 dark:text-slate-50">{lkr(toPay)}</span>
         </div>
 
         {status && (
-          <p className={`px-5 pb-2 text-xs ${statusError ? "text-amber-600" : "text-slate-500"}`}>
+          <p className={`px-5 pb-2 text-xs ${statusError ? "text-amber-600" : "text-slate-500 dark:text-slate-400"}`}>
             {status}
           </p>
         )}
@@ -904,7 +904,7 @@ export default function Pos() {
                   className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
                     inCart
                       ? "border-brand-300 bg-brand-50 text-brand-700"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                   }`}
                 >
                   + {p.name}
@@ -918,7 +918,7 @@ export default function Pos() {
         <div className="flex gap-2 px-5 pb-5 pt-2">
           <button
             type="button"
-            className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+            className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-3 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40"
             disabled={!cart.length || hold.isPending}
             onClick={() => hold.mutate()}
           >
@@ -1016,8 +1016,8 @@ export default function Pos() {
           aria-label={t("pos.printBillQuestion")}
         >
           <div className="card w-full max-w-sm p-5 text-center">
-            <p className="text-sm text-slate-500">{t("pos.printBillInvoice", { invoice: printPrompt.invoice })}</p>
-            <h2 className="mt-1 text-base font-semibold text-slate-800">{t("pos.printBillQuestion")}</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t("pos.printBillInvoice", { invoice: printPrompt.invoice })}</p>
+            <h2 className="mt-1 text-base font-semibold text-slate-800 dark:text-slate-100">{t("pos.printBillQuestion")}</h2>
             <div className="mt-5 flex gap-2">
               <button
                 type="button"
@@ -1067,8 +1067,8 @@ export default function Pos() {
                 d="M15 27l7 7 15-15"
               />
             </svg>
-            <h2 className="mt-3 text-base font-semibold text-slate-800">{t("pos.saleCompleted")}</h2>
-            <p className="mt-1 text-sm text-slate-500">{t("pos.printBillInvoice", { invoice: completedInvoice })}</p>
+            <h2 className="mt-3 text-base font-semibold text-slate-800 dark:text-slate-100">{t("pos.saleCompleted")}</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t("pos.printBillInvoice", { invoice: completedInvoice })}</p>
           </div>
         </div>
       )}

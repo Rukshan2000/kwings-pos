@@ -70,14 +70,14 @@ export default function LineDialog({
     >
       <div className="card w-full max-w-sm p-5">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="min-w-0 truncate text-sm font-semibold text-slate-700">{productName}</h2>
-          <button type="button" className="text-xs text-slate-400 hover:text-slate-700" onClick={onClose}>
+          <h2 className="min-w-0 truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{productName}</h2>
+          <button type="button" className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200" onClick={onClose}>
             {t("common.close")}
           </button>
         </div>
         {units.length > 1 && (
           <>
-            <p className="mt-3 text-xs font-medium text-slate-500">{t("lineDialog.sellBy")}</p>
+            <p className="mt-3 text-xs font-medium text-slate-500 dark:text-slate-400">{t("lineDialog.sellBy")}</p>
             <div className="mt-1.5 space-y-1.5">
               {units.map((u) => {
                 const active = u.unitId === selected;
@@ -89,18 +89,18 @@ export default function LineDialog({
                     className={`flex w-full items-baseline justify-between rounded-xl border px-3.5 py-3 text-left transition-colors ${
                       active
                         ? "border-brand-400 bg-brand-50"
-                        : "border-slate-200 bg-white hover:bg-slate-50"
+                        : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800"
                     }`}
                   >
-                    <span className="text-sm font-medium text-slate-800">
+                    <span className="text-sm font-medium text-slate-800 dark:text-slate-100">
                       {u.code}
                       {u.factor !== 1 && (
-                        <span className="ml-1.5 text-xs font-normal text-slate-400">
+                        <span className="ml-1.5 text-xs font-normal text-slate-400 dark:text-slate-500">
                           {t("lineDialog.baseSuffix", { factor: u.factor })}
                         </span>
                       )}
                     </span>
-                    <span className={`text-sm font-semibold ${active ? "text-brand-700" : "text-slate-700"}`}>
+                    <span className={`text-sm font-semibold ${active ? "text-brand-700" : "text-slate-700 dark:text-slate-200"}`}>
                       {lkr(priceFor(u))}
                     </span>
                   </button>
@@ -112,7 +112,7 @@ export default function LineDialog({
 
         {priceChoices && priceChoices.length > 1 && (
           <>
-            <p className="mt-3 text-xs font-medium text-slate-500">{t("lineDialog.price")}</p>
+            <p className="mt-3 text-xs font-medium text-slate-500 dark:text-slate-400">{t("lineDialog.price")}</p>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {priceChoices.map((c) => (
                 <button
@@ -122,7 +122,7 @@ export default function LineDialog({
                   className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
                     selectedPrice === c.price
                       ? "border-brand-400 bg-brand-50 text-brand-700"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                   }`}
                 >
                   {c.label} · {lkr(c.price)}
@@ -132,7 +132,7 @@ export default function LineDialog({
           </>
         )}
 
-        <p className="mt-4 text-xs font-medium text-slate-500">{t("lineDialog.itemDiscount")}</p>
+        <p className="mt-4 text-xs font-medium text-slate-500 dark:text-slate-400">{t("lineDialog.itemDiscount")}</p>
         <div className="mt-1.5">
           <DiscountControl
             value={discount}

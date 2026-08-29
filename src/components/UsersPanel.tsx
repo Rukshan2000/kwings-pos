@@ -53,7 +53,7 @@ export default function UsersPanel() {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-200">
+            <tr className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
               <th className="px-2 py-2.5">{t("settings.usersPanel.name")}</th>
               <th className="px-2 py-2.5">{t("settings.usersPanel.username")}</th>
               <th className="px-2 py-2.5">{t("settings.usersPanel.role")}</th>
@@ -61,11 +61,11 @@ export default function UsersPanel() {
               <th className="px-2 py-2.5"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {users.data?.map((u) => (
               <tr key={u.id}>
-                <td className="px-2 py-2.5 text-slate-800">{u.display_name}</td>
-                <td className="px-2 py-2.5 text-slate-500">{u.username}</td>
+                <td className="px-2 py-2.5 text-slate-800 dark:text-slate-100">{u.display_name}</td>
+                <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{u.username}</td>
                 <td className="px-2 py-2.5">
                   <select
                     className="select !py-1 !text-xs"
@@ -82,7 +82,7 @@ export default function UsersPanel() {
                   <label className="inline-flex items-center gap-1.5">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 rounded border-slate-300 text-brand-600"
+                      className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-brand-600"
                       checked={u.active}
                       disabled={u.id === me?.id}
                       onChange={(e) => setActive.mutate({ id: u.id, active: e.target.checked })}
@@ -110,7 +110,7 @@ export default function UsersPanel() {
                       </button>
                       <button
                         type="button"
-                        className="text-xs text-slate-400 hover:text-slate-600"
+                        className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                         onClick={() => {
                           setResetTarget(null);
                           setResetPassword("");
@@ -134,7 +134,7 @@ export default function UsersPanel() {
             ))}
             {users.data?.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-2 py-8 text-center text-slate-400">{t("settings.usersPanel.none")}</td>
+                <td colSpan={5} className="px-2 py-8 text-center text-slate-400 dark:text-slate-500">{t("settings.usersPanel.none")}</td>
               </tr>
             )}
           </tbody>
@@ -143,7 +143,7 @@ export default function UsersPanel() {
       </div>
 
       <form
-        className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-slate-100 pt-5"
+        className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-slate-100 dark:border-slate-800 pt-5"
         onSubmit={(e) => {
           e.preventDefault();
           create.mutate();

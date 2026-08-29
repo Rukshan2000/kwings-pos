@@ -31,10 +31,10 @@ export default function ForcePasswordChange() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50 px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50 dark:bg-slate-800 px-4">
       <form onSubmit={submit} className="card w-full max-w-sm p-7 space-y-4">
-        <h1 className="text-lg font-semibold text-slate-800">{t("auth.mustChangePassword")}</h1>
-        <p className="text-sm text-slate-500">{t("auth.mustChangePasswordHint")}</p>
+        <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">{t("auth.mustChangePassword")}</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{t("auth.mustChangePasswordHint")}</p>
         <label className="block">
           <span className="label mb-1 block">{t("auth.currentPassword")}</span>
           <input

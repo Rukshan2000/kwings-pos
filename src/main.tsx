@@ -7,6 +7,7 @@ import App from "./App";
 import CustomerDisplay from "./pages/CustomerDisplay";
 import SqlConsole from "./pages/SqlConsole";
 import { AuthProvider } from "./auth";
+import { initTheme } from "./theme";
 import "./styles.css";
 import "./receipt.css";
 import "./i18n";
@@ -20,6 +21,11 @@ const queryClient = new QueryClient({
 // a plain, unauthenticated render tree instead of the till's routed app, so
 // it never touches login, the router, or the database.
 const isCustomerDisplay = getCurrentWindow().label === "customer";
+
+// The customer display is deliberately always dark (a fixed kiosk look, easy
+// to read from across a counter) — every other window follows the shop's own
+// light/dark/system preference.
+if (!isCustomerDisplay) initTheme();
 // The SQL console is the same second-window pattern (see `open_sql_console`
 // in the Rust backend) — it needs auth (to confirm the shared session is
 // still an admin) and react-query, but not the router or the till's screens.

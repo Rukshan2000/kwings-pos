@@ -455,6 +455,13 @@
     "savedTo": "Saved to {{path}}",
     "backupFailed": "Backup failed: {{error}}",
     "language": "Language",
+    "appearance": {
+      "title": "Appearance",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System",
+      "hint": "\"System\" follows your computer's own light/dark setting."
+    },
     "billContent": {
       "title": "Bill Content",
       "hint": "What prints on the receipt — edit each language separately.",

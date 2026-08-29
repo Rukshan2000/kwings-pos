@@ -49,10 +49,10 @@ export default function AddCustomerDialog({
     >
       <div className="card w-full max-w-sm p-5">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold text-slate-700">{t("pos.addCustomerTitle")}</h2>
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t("pos.addCustomerTitle")}</h2>
           <button
             type="button"
-            className="text-xs text-slate-400 hover:text-slate-700 disabled:opacity-40"
+            className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-40"
             onClick={onClose}
             disabled={pending}
           >

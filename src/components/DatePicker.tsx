@@ -85,7 +85,7 @@ export default function DatePicker({
         className="field !w-auto inline-flex items-center gap-2 !py-1.5"
         onClick={() => setOpen((o) => !o)}
       >
-        <svg width="15" height="15" viewBox="0 0 20 20" fill="none" className="text-slate-400 shrink-0">
+        <svg width="15" height="15" viewBox="0 0 20 20" fill="none" className="text-slate-400 dark:text-slate-500 shrink-0">
           <rect x="3" y="4.5" width="14" height="12.5" rx="2" stroke="currentColor" strokeWidth="1.5" />
           <path d="M3 8h14M6.5 2.5v3M13.5 2.5v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
@@ -93,21 +93,21 @@ export default function DatePicker({
       </button>
 
       {open && (
-        <div className="absolute right-0 z-30 mt-1.5 w-72 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+        <div className="absolute right-0 z-30 mt-1.5 w-72 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 shadow-xl">
           <div className="mb-2 flex items-center justify-between">
             <button
               type="button"
-              className="grid h-7 w-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100"
+              className="grid h-7 w-7 place-items-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
               onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
             >
               ‹
             </button>
-            <span className="text-sm font-semibold text-slate-800">
+            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
               {viewMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
             </span>
             <button
               type="button"
-              className="grid h-7 w-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100"
+              className="grid h-7 w-7 place-items-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
               onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
             >
               ›
@@ -116,7 +116,7 @@ export default function DatePicker({
 
           <div className="grid grid-cols-7 gap-y-1 text-center">
             {WEEKDAYS.map((w) => (
-              <span key={w} className="text-[11px] font-medium text-slate-400">{w}</span>
+              <span key={w} className="text-[11px] font-medium text-slate-400 dark:text-slate-500">{w}</span>
             ))}
             {cells.map((d, i) =>
               d ? (
@@ -130,7 +130,7 @@ export default function DatePicker({
                       ? "bg-brand-600 text-white font-semibold"
                       : sameDay(d, today)
                         ? "text-brand-700 font-semibold ring-1 ring-inset ring-brand-200"
-                        : "text-slate-700 hover:bg-slate-100"
+                        : "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
                   } ${isDisabled(d) ? "cursor-not-allowed opacity-30 hover:bg-transparent" : ""}`}
                 >
                   {d.getDate()}
@@ -141,7 +141,7 @@ export default function DatePicker({
             )}
           </div>
 
-          <div className="mt-2 flex justify-between border-t border-slate-100 pt-2">
+          <div className="mt-2 flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2">
             <button
               type="button"
               className="text-xs font-medium text-brand-600 hover:underline disabled:text-slate-300 disabled:no-underline"
@@ -150,7 +150,7 @@ export default function DatePicker({
             >
               Today
             </button>
-            <button type="button" className="text-xs text-slate-400 hover:text-slate-600" onClick={() => setOpen(false)}>
+            <button type="button" className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300" onClick={() => setOpen(false)}>
               Close
             </button>
           </div>

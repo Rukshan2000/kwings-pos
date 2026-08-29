@@ -24,11 +24,12 @@ export default function Login() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50 px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50 dark:bg-slate-800 px-4">
       <form onSubmit={submit} className="card w-full max-w-sm p-7 space-y-4">
         <div className="flex flex-col items-center gap-2 mb-2">
-          <img src="/pos-logo-black.png" alt="" className="h-14 w-14 object-contain" />
-          <h1 className="text-lg font-semibold text-slate-800">{t("auth.signIn")}</h1>
+          <img src="/pos-logo-black.png" alt="" className="h-14 w-14 object-contain dark:hidden" />
+          <img src="/pos-logo-white.png" alt="" className="hidden h-14 w-14 object-contain dark:block" />
+          <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">{t("auth.signIn")}</h1>
         </div>
         <label className="block">
           <span className="label mb-1 block">{t("auth.username")}</span>

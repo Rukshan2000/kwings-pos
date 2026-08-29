@@ -48,7 +48,7 @@ export default function Reports() {
               type="button"
               onClick={() => setTab(tb.key)}
               className={`rounded-lg px-3.5 py-2 text-sm font-medium transition-colors duration-150 ${
-                tab === tb.key ? "bg-brand-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+                tab === tb.key ? "bg-brand-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
               }`}
             >
               {tb.label}
@@ -57,11 +57,11 @@ export default function Reports() {
         </div>
         {tab !== "stock" && (
           <div className="ml-auto flex items-center gap-2 text-sm">
-            <label className="flex items-center gap-1.5 text-slate-500">
+            <label className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
               {t("reports.from")}
               <DatePicker value={from} max={to} onChange={setFrom} />
             </label>
-            <label className="flex items-center gap-1.5 text-slate-500">
+            <label className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
               {t("reports.to")}
               <DatePicker value={to} min={from} max={todayIso()} onChange={setTo} />
             </label>
@@ -83,8 +83,8 @@ export default function Reports() {
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="card p-4">
-      <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-slate-800">{value}</p>
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-1 text-xl font-semibold text-slate-800 dark:text-slate-100">{value}</p>
     </div>
   );
 }
@@ -107,23 +107,23 @@ function RevenueTab({ from, to }: { from: string; to: string }) {
         <h2 className="mb-4 text-sm font-semibold text-brand-700">{t("reports.revenue.daily")}</h2>
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-200">
+            <tr className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
               <th className="px-2 py-2.5">{t("reports.date")}</th>
               <th className="px-2 py-2.5">{t("reports.revenue.orders")}</th>
               <th className="px-2 py-2.5">{t("reports.revenue.total")}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {pageItems.map((d) => (
               <tr key={d.day}>
-                <td className="px-2 py-2.5 text-slate-800">{d.day}</td>
-                <td className="px-2 py-2.5 text-slate-500">{d.order_count}</td>
-                <td className="px-2 py-2.5 font-medium text-slate-800">{lkr(Number(d.revenue))}</td>
+                <td className="px-2 py-2.5 text-slate-800 dark:text-slate-100">{d.day}</td>
+                <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{d.order_count}</td>
+                <td className="px-2 py-2.5 font-medium text-slate-800 dark:text-slate-100">{lkr(Number(d.revenue))}</td>
               </tr>
             ))}
             {(r?.daily.length ?? 0) === 0 && (
               <tr>
-                <td colSpan={3} className="px-2 py-10 text-center text-slate-400">{t("reports.nothingToShow")}</td>
+                <td colSpan={3} className="px-2 py-10 text-center text-slate-400 dark:text-slate-500">{t("reports.nothingToShow")}</td>
               </tr>
             )}
           </tbody>
@@ -159,7 +159,7 @@ function ProductsTab({ from, to }: { from: string; to: string }) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-200">
+            <tr className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
               <th className="px-2 py-2.5">{t("reports.product")}</th>
               <th className="px-2 py-2.5">{t("reports.products.qtySold")}</th>
               <th className="px-2 py-2.5">{t("reports.products.revenue")}</th>
@@ -167,19 +167,19 @@ function ProductsTab({ from, to }: { from: string; to: string }) {
               <th className="px-2 py-2.5">{t("reports.products.profit")}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {pageItems.map((row) => (
               <tr key={row.product_id}>
-                <td className="px-2 py-2.5 text-slate-800">{row.product_name}</td>
-                <td className="px-2 py-2.5 text-slate-500">{row.quantity}</td>
-                <td className="px-2 py-2.5 text-slate-500">{lkr(Number(row.revenue))}</td>
-                <td className="px-2 py-2.5 text-slate-500">{lkr(Number(row.cost))}</td>
+                <td className="px-2 py-2.5 text-slate-800 dark:text-slate-100">{row.product_name}</td>
+                <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{row.quantity}</td>
+                <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{lkr(Number(row.revenue))}</td>
+                <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{lkr(Number(row.cost))}</td>
                 <td className="px-2 py-2.5 font-medium text-emerald-600">{lkr(Number(row.profit))}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-2 py-10 text-center text-slate-400">{t("reports.nothingToShow")}</td>
+                <td colSpan={5} className="px-2 py-10 text-center text-slate-400 dark:text-slate-500">{t("reports.nothingToShow")}</td>
               </tr>
             )}
           </tbody>
@@ -208,25 +208,25 @@ function ProfitTab({ from, to }: { from: string; to: string }) {
         <h2 className="mb-4 text-sm font-semibold text-brand-700">{t("reports.profit.byCategory")}</h2>
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-200">
+            <tr className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
               <th className="px-2 py-2.5">{t("reports.profit.category")}</th>
               <th className="px-2 py-2.5">{t("reports.profit.revenue")}</th>
               <th className="px-2 py-2.5">{t("reports.profit.cost")}</th>
               <th className="px-2 py-2.5">{t("reports.profit.profit")}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {pageItems.map((c) => (
               <tr key={c.category_name}>
-                <td className="px-2 py-2.5 text-slate-800">{c.category_name}</td>
-                <td className="px-2 py-2.5 text-slate-500">{lkr(Number(c.revenue))}</td>
-                <td className="px-2 py-2.5 text-slate-500">{lkr(Number(c.cost))}</td>
+                <td className="px-2 py-2.5 text-slate-800 dark:text-slate-100">{c.category_name}</td>
+                <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{lkr(Number(c.revenue))}</td>
+                <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{lkr(Number(c.cost))}</td>
                 <td className="px-2 py-2.5 font-medium text-emerald-600">{lkr(Number(c.profit))}</td>
               </tr>
             ))}
             {(p?.by_category.length ?? 0) === 0 && (
               <tr>
-                <td colSpan={4} className="px-2 py-10 text-center text-slate-400">{t("reports.nothingToShow")}</td>
+                <td colSpan={4} className="px-2 py-10 text-center text-slate-400 dark:text-slate-500">{t("reports.nothingToShow")}</td>
               </tr>
             )}
           </tbody>
@@ -247,23 +247,23 @@ function PaymentsTab({ from, to }: { from: string; to: string }) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-200">
+            <tr className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
               <th className="px-2 py-2.5">{t("reports.payments.method")}</th>
               <th className="px-2 py-2.5">{t("reports.payments.count")}</th>
               <th className="px-2 py-2.5">{t("reports.payments.total")}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {pageItems.map((row) => (
               <tr key={row.method}>
-                <td className="px-2 py-2.5 text-slate-800 capitalize">{row.method.replace("_", " ")}</td>
-                <td className="px-2 py-2.5 text-slate-500">{row.order_count}</td>
-                <td className="px-2 py-2.5 font-medium text-slate-800">{lkr(Number(row.total))}</td>
+                <td className="px-2 py-2.5 text-slate-800 dark:text-slate-100 capitalize">{row.method.replace("_", " ")}</td>
+                <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{row.order_count}</td>
+                <td className="px-2 py-2.5 font-medium text-slate-800 dark:text-slate-100">{lkr(Number(row.total))}</td>
               </tr>
             ))}
             {(q.data?.length ?? 0) === 0 && (
               <tr>
-                <td colSpan={3} className="px-2 py-10 text-center text-slate-400">{t("reports.nothingToShow")}</td>
+                <td colSpan={3} className="px-2 py-10 text-center text-slate-400 dark:text-slate-500">{t("reports.nothingToShow")}</td>
               </tr>
             )}
           </tbody>
@@ -292,7 +292,7 @@ function PurchasesTab({ from, to }: { from: string; to: string }) {
         <h2 className="mb-4 text-sm font-semibold text-brand-700">{t("reports.purchases.bySupplier")}</h2>
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-200">
+            <tr className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
               <th className="px-2 py-2.5">{t("reports.purchases.supplier")}</th>
               <th className="px-2 py-2.5">{t("reports.purchases.count")}</th>
               <th className="px-2 py-2.5">{t("reports.purchases.total")}</th>
@@ -300,21 +300,21 @@ function PurchasesTab({ from, to }: { from: string; to: string }) {
               <th className="px-2 py-2.5">{t("reports.purchases.outstanding")}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {pageItems.map((s) => (
               <tr key={s.supplier_id}>
-                <td className="px-2 py-2.5 text-slate-800">{s.supplier_name}</td>
-                <td className="px-2 py-2.5 text-slate-500">{s.purchase_count}</td>
-                <td className="px-2 py-2.5 text-slate-500">{lkr(Number(s.total))}</td>
-                <td className="px-2 py-2.5 text-slate-500">{lkr(Number(s.paid))}</td>
-                <td className={`px-2 py-2.5 font-medium ${Number(s.outstanding) > 0 ? "text-amber-600" : "text-slate-800"}`}>
+                <td className="px-2 py-2.5 text-slate-800 dark:text-slate-100">{s.supplier_name}</td>
+                <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{s.purchase_count}</td>
+                <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{lkr(Number(s.total))}</td>
+                <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{lkr(Number(s.paid))}</td>
+                <td className={`px-2 py-2.5 font-medium ${Number(s.outstanding) > 0 ? "text-amber-600" : "text-slate-800 dark:text-slate-100"}`}>
                   {lkr(Number(s.outstanding))}
                 </td>
               </tr>
             ))}
             {(p?.by_supplier.length ?? 0) === 0 && (
               <tr>
-                <td colSpan={5} className="px-2 py-10 text-center text-slate-400">{t("reports.nothingToShow")}</td>
+                <td colSpan={5} className="px-2 py-10 text-center text-slate-400 dark:text-slate-500">{t("reports.nothingToShow")}</td>
               </tr>
             )}
           </tbody>
@@ -355,23 +355,23 @@ function CashiersTab({ from, to, isManager }: { from: string; to: string; isMana
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-200">
+            <tr className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
               <th className="px-2 py-2.5">{t("reports.cashiers.cashier")}</th>
               <th className="px-2 py-2.5">{t("reports.revenue.orders")}</th>
               <th className="px-2 py-2.5">{t("reports.revenue.total")}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {pageItems.map((row) => (
               <tr key={row.cashier_id ?? "unassigned"}>
-                <td className="px-2 py-2.5 text-slate-800">{row.cashier_name}</td>
-                <td className="px-2 py-2.5 text-slate-500">{row.order_count}</td>
-                <td className="px-2 py-2.5 font-medium text-slate-800">{lkr(Number(row.revenue))}</td>
+                <td className="px-2 py-2.5 text-slate-800 dark:text-slate-100">{row.cashier_name}</td>
+                <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{row.order_count}</td>
+                <td className="px-2 py-2.5 font-medium text-slate-800 dark:text-slate-100">{lkr(Number(row.revenue))}</td>
               </tr>
             ))}
             {(byCashier.data?.length ?? 0) === 0 && (
               <tr>
-                <td colSpan={3} className="px-2 py-10 text-center text-slate-400">{t("reports.nothingToShow")}</td>
+                <td colSpan={3} className="px-2 py-10 text-center text-slate-400 dark:text-slate-500">{t("reports.nothingToShow")}</td>
               </tr>
             )}
           </tbody>
@@ -393,7 +393,7 @@ function StockTab() {
         <StatCard label={t("reports.stock.lowStock")} value={s ? String(s.low_stock_count) : "…"} />
         <StatCard label={t("reports.stock.value")} value={s ? lkr(Number(s.total_on_hand_value)) : "…"} />
       </div>
-      <p className="text-sm text-slate-500">{t("reports.stock.detailHint")}</p>
+      <p className="text-sm text-slate-500 dark:text-slate-400">{t("reports.stock.detailHint")}</p>
     </div>
   );
 }

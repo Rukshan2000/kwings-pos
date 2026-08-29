@@ -48,12 +48,12 @@ export default function PricePickerDialog({
     >
       <div className="card w-full max-w-sm p-5">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="min-w-0 truncate text-sm font-semibold text-slate-700">{productName}</h2>
-          <button type="button" className="text-xs text-slate-400 hover:text-slate-700" onClick={onClose}>
+          <h2 className="min-w-0 truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{productName}</h2>
+          <button type="button" className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200" onClick={onClose}>
             {t("common.close")}
           </button>
         </div>
-        <p className="mt-1 text-xs text-slate-400">{t("pricePicker.hint")}</p>
+        <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{t("pricePicker.hint")}</p>
 
         <div className="mt-3 space-y-1.5">
           {choices.map((c, i) => (
@@ -62,10 +62,10 @@ export default function PricePickerDialog({
               type="button"
               autoFocus={i === 0}
               onClick={() => onPick(c.price)}
-              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-left transition-colors hover:border-brand-300 hover:bg-brand-50"
+              className="flex w-full items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-3 text-left transition-colors hover:border-brand-300 hover:bg-brand-50"
             >
-              <span className="text-sm font-medium text-slate-800">{c.label}</span>
-              <span className="text-base font-semibold text-slate-900">{lkr(c.price)}</span>
+              <span className="text-sm font-medium text-slate-800 dark:text-slate-100">{c.label}</span>
+              <span className="text-base font-semibold text-slate-900 dark:text-slate-50">{lkr(c.price)}</span>
             </button>
           ))}
         </div>

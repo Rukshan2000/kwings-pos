@@ -122,8 +122,8 @@ export default function MasterEntries() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold text-slate-800">{t("masterEntries.title")}</h1>
-        <p className="text-sm text-slate-500">{t("masterEntries.subtitle")}</p>
+        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">{t("masterEntries.title")}</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{t("masterEntries.subtitle")}</p>
       </div>
 
       <div className="flex flex-wrap gap-2" role="tablist" aria-label={t("masterEntries.tabsAria")}>
@@ -140,13 +140,13 @@ export default function MasterEntries() {
             }}
             className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
               tab === id
-                ? "bg-slate-900 text-white"
-                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                ? "bg-slate-900 dark:bg-brand-600 text-white"
+                : "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
             }`}
           >
             {t(`masterEntries.tabs.${id}.label`)}
             {counts[id] !== undefined && (
-              <span className={`ml-1.5 text-xs ${tab === id ? "text-slate-300" : "text-slate-400"}`}>
+              <span className={`ml-1.5 text-xs ${tab === id ? "text-slate-300 dark:text-slate-600" : "text-slate-400 dark:text-slate-500"}`}>
                 {counts[id]}
               </span>
             )}
@@ -155,10 +155,10 @@ export default function MasterEntries() {
       </div>
 
       <div className="card max-w-3xl p-5">
-        <p className="mb-4 text-xs text-slate-400">{t(`masterEntries.tabs.${tab}.hint`)}</p>
+        <p className="mb-4 text-xs text-slate-400 dark:text-slate-500">{t(`masterEntries.tabs.${tab}.hint`)}</p>
 
         {status && (
-          <p className="mb-4 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">{status}</p>
+          <p className="mb-4 rounded-lg bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm text-slate-600 dark:text-slate-300">{status}</p>
         )}
 
         {tab === "units" && (
@@ -188,7 +188,7 @@ export default function MasterEntries() {
                 id: u.id,
                 left: u.name,
                 right: (
-                  <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+                  <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
                     {u.code}
                   </span>
                 ),
@@ -215,7 +215,7 @@ export default function MasterEntries() {
                 left: (
                   <span className="flex items-center gap-2">
                     <span
-                      className="h-3.5 w-3.5 shrink-0 rounded-full border border-slate-200"
+                      className="h-3.5 w-3.5 shrink-0 rounded-full border border-slate-200 dark:border-slate-700"
                       style={{ backgroundColor: c.color ?? "#cbd5e1" }}
                     />
                     {c.name}
@@ -224,7 +224,7 @@ export default function MasterEntries() {
                 right: (
                   <input
                     type="color"
-                    className="h-7 w-9 cursor-pointer rounded border border-slate-200 bg-white p-0.5"
+                    className="h-7 w-9 cursor-pointer rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-0.5"
                     value={c.color ?? "#cbd5e1"}
                     aria-label={t("masterEntries.categoryColorAria")}
                     onChange={(e) => setCategoryColor.mutate({ id: c.id, color: e.target.value })}
@@ -286,7 +286,7 @@ export default function MasterEntries() {
                 left: (
                   <>
                     {s.name}
-                    {s.phone && <span className="ml-2 text-xs text-slate-400">{s.phone}</span>}
+                    {s.phone && <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">{s.phone}</span>}
                   </>
                 ),
                 right:
@@ -363,9 +363,9 @@ export default function MasterEntries() {
                 {t("common.save")}
               </button>
             </form>
-            <p className="mt-2 text-xs text-slate-400">{t("masterEntries.loyaltyHint")}</p>
+            <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">{t("masterEntries.loyaltyHint")}</p>
 
-            <div className="mt-6 border-t border-slate-100 pt-4">
+            <div className="mt-6 border-t border-slate-100 dark:border-slate-800 pt-4">
               <h3 className="label mb-2">{t("masterEntries.customers")}</h3>
               <form
                 className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]"
@@ -393,11 +393,11 @@ export default function MasterEntries() {
                   left: (
                     <>
                       {c.name}
-                      {c.phone && <span className="ml-2 text-xs text-slate-400">{c.phone}</span>}
+                      {c.phone && <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">{c.phone}</span>}
                     </>
                   ),
                   right: (
-                    <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+                    <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
                       {t("masterEntries.pointsBalance", { points: c.loyalty_points })}
                     </span>
                   ),
@@ -477,7 +477,7 @@ function CategoryForm({
     >
       <input
         type="color"
-        className="h-9 w-11 shrink-0 cursor-pointer rounded border border-slate-200 bg-white p-0.5"
+        className="h-9 w-11 shrink-0 cursor-pointer rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-0.5"
         value={color}
         aria-label={t("masterEntries.categoryColorAria")}
         onChange={(e) => setColor(e.target.value)}
@@ -513,10 +513,10 @@ function Rows({
 }) {
   const { t } = useTranslation();
   return (
-    <ul className="mt-4 divide-y divide-slate-100 border-t border-slate-100 text-sm">
+    <ul className="mt-4 divide-y divide-slate-100 dark:divide-slate-800 border-t border-slate-100 dark:border-slate-800 text-sm">
       {rows?.map((r) => (
         <li key={r.id} className="flex items-center justify-between gap-3 py-2.5">
-          <span className="min-w-0 truncate text-slate-700">{r.left}</span>
+          <span className="min-w-0 truncate text-slate-700 dark:text-slate-200">{r.left}</span>
           <span className="flex shrink-0 items-center gap-2">
             {r.right}
             {onDelete &&
@@ -550,7 +550,7 @@ function Rows({
           </span>
         </li>
       ))}
-      {empty && <li className="py-3 text-slate-400">{t("masterEntries.noneYet")}</li>}
+      {empty && <li className="py-3 text-slate-400 dark:text-slate-500">{t("masterEntries.noneYet")}</li>}
     </ul>
   );
 }

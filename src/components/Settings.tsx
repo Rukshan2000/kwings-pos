@@ -6,6 +6,7 @@ import UsersPanel from "./UsersPanel";
 import { backupNow, DbState } from "../db";
 import { useCurrentUser } from "../auth";
 import { setLanguage, SUPPORTED_LANGUAGES } from "../i18n";
+import { getTheme, setTheme, ThemeSetting } from "../theme";
 import {
   isDesktop,
   listPrinters,
@@ -59,6 +60,11 @@ export default function Settings({
   const [addingVideo, setAddingVideo] = useState(false);
   const currentUser = useCurrentUser();
   const isAdmin = currentUser?.role === "admin";
+  const [theme, setThemeState] = useState<ThemeSetting>(getTheme);
+  const setThemeSetting = (t: ThemeSetting) => {
+    setTheme(t);
+    setThemeState(t);
+  };
 
   const addVideos = async () => {
     setAddingVideo(true);
@@ -174,8 +180,8 @@ export default function Settings({
             onClick={() => setTab(id)}
             className={`rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${
               tab === id
-                ? "bg-slate-900 text-white"
-                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                ? "bg-slate-900 dark:bg-brand-600 text-white"
+                : "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
             }`}
           >
             {id === "printer"
@@ -194,7 +200,7 @@ export default function Settings({
         {isAdmin && (
           <button
             type="button"
-            className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
             onClick={() => api.openSqlConsole()}
           >
             {t("settings.sqlConsole.title")} ↗
@@ -203,21 +209,42 @@ export default function Settings({
       </div>
 
       {tab === "language" && (
-        <div>
-          <label className="label mb-1.5 block">{t("settings.language")}</label>
-          <div className="flex overflow-hidden rounded-lg border border-slate-200 w-fit">
-            {SUPPORTED_LANGUAGES.map((l) => (
-              <button
-                key={l.code}
-                type="button"
-                onClick={() => setLanguage(l.code)}
-                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                  i18n.language === l.code ? "bg-brand-600 text-white" : "bg-white text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                {l.label}
-              </button>
-            ))}
+        <div className="space-y-6">
+          <div>
+            <label className="label mb-1.5 block">{t("settings.language")}</label>
+            <div className="flex overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 w-fit">
+              {SUPPORTED_LANGUAGES.map((l) => (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => setLanguage(l.code)}
+                  className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                    i18n.language === l.code ? "bg-brand-600 text-white" : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="label mb-1.5 block">{t("settings.appearance.title")}</label>
+            <div className="flex overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 w-fit">
+              {(["light", "dark", "system"] as const).map((th) => (
+                <button
+                  key={th}
+                  type="button"
+                  onClick={() => setThemeSetting(th)}
+                  className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                    theme === th ? "bg-brand-600 text-white" : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  {t(`settings.appearance.${th}`)}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">{t("settings.appearance.hint")}</p>
           </div>
         </div>
       )}
@@ -234,7 +261,7 @@ export default function Settings({
                 <option key={n} value={n}>{n}</option>
               ))}
             </select>
-            {loading && <p className="mt-1.5 text-xs text-slate-400">{t("settings.lookingForPrinters")}</p>}
+            {loading && <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">{t("settings.lookingForPrinters")}</p>}
             {!loading && !names.length && isDesktop() && (
               <p className="mt-1.5 text-xs text-amber-600">{t("settings.noPrintersFound")}</p>
             )}
@@ -247,42 +274,42 @@ export default function Settings({
             </p>
           )}
 
-          <label className="flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
+          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 sm:col-span-2">
             <input
               type="checkbox"
-              className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-400"
+              className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-brand-600 focus:ring-brand-400"
               checked={drawer}
               onChange={(e) => setDrawer(e.target.checked)}
             />
             {t("settings.openCashDrawer")}
           </label>
 
-          <p className="text-xs text-slate-500 leading-relaxed sm:col-span-2">{t("settings.escposNote")}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed sm:col-span-2">{t("settings.escposNote")}</p>
         </div>
       )}
 
       {tab === "billContent" && (
         <div className="space-y-5">
-          <p className="text-xs text-slate-400">{t("settings.billContent.hint")}</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500">{t("settings.billContent.hint")}</p>
 
           <div className={embedded ? "grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2" : "space-y-5"}>
             <div>
               <label className="label mb-1.5 block">{t("settings.billContent.billLanguage")}</label>
-              <div className="flex overflow-hidden rounded-lg border border-slate-200 w-fit">
+              <div className="flex overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 w-fit">
                 {SUPPORTED_LANGUAGES.map((l) => (
                   <button
                     key={l.code}
                     type="button"
                     onClick={() => setShop((s) => ({ ...s, billLanguage: l.code }))}
                     className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                      shop.billLanguage === l.code ? "bg-brand-600 text-white" : "bg-white text-slate-600 hover:bg-slate-100"
+                      shop.billLanguage === l.code ? "bg-brand-600 text-white" : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
                     }`}
                   >
                     {l.label}
                   </button>
                 ))}
               </div>
-              <p className="mt-1.5 text-xs text-slate-400">{t("settings.billContent.billLanguageHint")}</p>
+              <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">{t("settings.billContent.billLanguageHint")}</p>
             </div>
 
             <div>
@@ -291,7 +318,7 @@ export default function Settings({
                 <img
                   src={shop.logo}
                   alt=""
-                  className="h-12 w-12 rounded-lg border border-slate-200 object-contain bg-white"
+                  className="h-12 w-12 rounded-lg border border-slate-200 dark:border-slate-700 object-contain bg-white dark:bg-slate-900"
                 />
                 <label className="btn-secondary cursor-pointer !py-1.5 !px-3 text-xs">
                   {t("settings.billContent.uploadLogo")}
@@ -305,7 +332,7 @@ export default function Settings({
                 {shop.logo !== DEFAULT_LOGO && (
                   <button
                     type="button"
-                    className="text-xs text-slate-400 hover:text-amber-600"
+                    className="text-xs text-slate-400 dark:text-slate-500 hover:text-amber-600"
                     onClick={() => setShop((s) => ({ ...s, logo: DEFAULT_LOGO }))}
                   >
                     {t("settings.billContent.resetLogo")}
@@ -343,22 +370,22 @@ export default function Settings({
                   setShop((s) => ({ ...s, imageLineSpacing: Number(e.target.value) || 24 }))
                 }
               />
-              <span className="mt-1 block text-xs text-slate-400">
+              <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">
                 {t("settings.billContent.imageLineSpacingHint")}
               </span>
             </label>
           </div>
 
-          <div className="border-t border-slate-100 pt-5">
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-5">
             <label className="label mb-1.5 block">{t("settings.billContent.editingLanguage")}</label>
-            <div className="flex overflow-hidden rounded-lg border border-slate-200 w-fit">
+            <div className="flex overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 w-fit">
               {SUPPORTED_LANGUAGES.map((l) => (
                 <button
                   key={l.code}
                   type="button"
                   onClick={() => setEditingLang(l.code)}
                   className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                    editingLang === l.code ? "bg-brand-600 text-white" : "bg-white text-slate-600 hover:bg-slate-100"
+                    editingLang === l.code ? "bg-brand-600 text-white" : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
                   }`}
                 >
                   {l.label}
@@ -402,16 +429,16 @@ export default function Settings({
 
       {tab === "customerDisplay" && (
         <div className="space-y-5">
-          <p className="text-xs text-slate-400">{t("settings.customerDisplay.hint")}</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500">{t("settings.customerDisplay.hint")}</p>
 
           <button type="button" className="btn-secondary" onClick={() => api.openCustomerDisplay().catch(() => {})}>
             {t("settings.customerDisplay.open")}
           </button>
 
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
             <input
               type="checkbox"
-              className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-400"
+              className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-brand-600 focus:ring-brand-400"
               checked={shop.customerDisplay.adsEnabled}
               onChange={(e) =>
                 setShop((s) => ({
@@ -432,18 +459,18 @@ export default function Settings({
             </div>
 
             {shop.customerDisplay.videoQueue.length === 0 ? (
-              <p className="mt-2 text-xs text-slate-400">{t("settings.customerDisplay.queueEmpty")}</p>
+              <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">{t("settings.customerDisplay.queueEmpty")}</p>
             ) : (
-              <ul className="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200">
+              <ul className="mt-2 divide-y divide-slate-100 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
                 {shop.customerDisplay.videoQueue.map((path, i) => (
                   <li key={`${path}-${i}`} className="flex items-center gap-2 px-3 py-2 text-sm">
-                    <span className="w-5 shrink-0 text-xs text-slate-400">{i + 1}</span>
-                    <span className="min-w-0 flex-1 truncate text-slate-700" title={path}>
+                    <span className="w-5 shrink-0 text-xs text-slate-400 dark:text-slate-500">{i + 1}</span>
+                    <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200" title={path}>
                       {path}
                     </span>
                     <button
                       type="button"
-                      className="h-6 w-6 shrink-0 rounded-md border border-slate-200 text-xs text-slate-500 hover:bg-slate-50 disabled:opacity-30"
+                      className="h-6 w-6 shrink-0 rounded-md border border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30"
                       disabled={i === 0}
                       onClick={() => moveVideo(i, -1)}
                       aria-label={t("settings.customerDisplay.moveUp")}
@@ -452,7 +479,7 @@ export default function Settings({
                     </button>
                     <button
                       type="button"
-                      className="h-6 w-6 shrink-0 rounded-md border border-slate-200 text-xs text-slate-500 hover:bg-slate-50 disabled:opacity-30"
+                      className="h-6 w-6 shrink-0 rounded-md border border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30"
                       disabled={i === shop.customerDisplay.videoQueue.length - 1}
                       onClick={() => moveVideo(i, 1)}
                       aria-label={t("settings.customerDisplay.moveDown")}
@@ -461,7 +488,7 @@ export default function Settings({
                     </button>
                     <button
                       type="button"
-                      className="shrink-0 text-slate-400 hover:text-amber-600"
+                      className="shrink-0 text-slate-400 dark:text-slate-500 hover:text-amber-600"
                       onClick={() => removeVideo(i)}
                       aria-label={t("settings.customerDisplay.remove")}
                     >
@@ -478,7 +505,7 @@ export default function Settings({
       {tab === "database" && (
         <div>
           {dbState.kind === "ready" ? (
-            <p className="text-xs text-slate-500 leading-relaxed">
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
               {t("settings.dbInfo", {
                 version: dbState.health.serverVersion,
                 port: dbState.health.port,
@@ -493,9 +520,9 @@ export default function Settings({
               )}
             </p>
           ) : dbState.kind === "starting" ? (
-            <p className="text-xs text-slate-400">{t("settings.starting")}</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">{t("settings.starting")}</p>
           ) : dbState.kind === "browser" ? (
-            <p className="text-xs text-slate-400">{t("settings.notAvailableInBrowser")}</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">{t("settings.notAvailableInBrowser")}</p>
           ) : (
             <p className="text-xs text-amber-600">{dbState.message}</p>
           )}
@@ -519,7 +546,7 @@ export default function Settings({
             {backingUp ? t("settings.backingUp") : t("settings.backupNow")}
           </button>
           {backup && (
-            <p className={`mt-1.5 text-xs ${backup.startsWith("Backup failed") ? "text-amber-600" : "text-slate-500"}`}>
+            <p className={`mt-1.5 text-xs ${backup.startsWith("Backup failed") ? "text-amber-600" : "text-slate-500 dark:text-slate-400"}`}>
               {backup}
             </p>
           )}
@@ -529,7 +556,7 @@ export default function Settings({
       {tab === "users" && isAdmin && <UsersPanel />}
 
       {tab !== "users" && (
-        <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
+        <div className="flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 pt-5">
           <button type="button" className="btn-secondary" onClick={load}>{t("common.refresh")}</button>
           <button
             type="button"
@@ -553,7 +580,7 @@ export default function Settings({
         {body}
         <div className="shrink-0">
           <p className="label mb-2">{t("settings.billContent.preview")}</p>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-4 shadow-sm">
             <Receipt bill={PREVIEW_BILL} shop={shop} lang={shop.billLanguage} />
           </div>
         </div>

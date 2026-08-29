@@ -24,7 +24,7 @@ export default function Splash({ ready }: { ready: boolean }) {
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-white transition-opacity duration-500 ${
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-white dark:bg-slate-900 transition-opacity duration-500 ${
         fadingOut ? "opacity-0 pointer-events-none" : "opacity-100"
       }`}
     >
@@ -39,7 +39,12 @@ export default function Splash({ ready }: { ready: boolean }) {
           <img
             src="/pos-logo-black.png"
             alt=""
-            className="relative h-64 w-64 object-contain animate-splash-pop"
+            className="relative h-64 w-64 object-contain animate-splash-pop dark:hidden"
+          />
+          <img
+            src="/pos-logo-white.png"
+            alt=""
+            className="relative hidden h-64 w-64 object-contain animate-splash-pop dark:block"
           />
         </div>
         <div className="flex gap-2">

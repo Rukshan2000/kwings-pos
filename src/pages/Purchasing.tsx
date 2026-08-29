@@ -12,7 +12,7 @@ type Line = { product_id: number; unit_id: number; quantity: string; unit_cost: 
 function StatusPill({ status }: { status: string }) {
   const { t } = useTranslation();
   const styles: Record<string, string> = {
-    draft: "bg-slate-100 text-slate-600",
+    draft: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300",
     received: "bg-emerald-100 text-emerald-700",
     cancelled: "bg-amber-100 text-amber-600",
   };
@@ -66,7 +66,7 @@ export default function Purchasing() {
         <div className="overflow-x-auto -mx-2">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs font-medium text-slate-500 border-b border-slate-200">
+              <tr className="text-left text-xs font-medium text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                 <th className="px-2 py-2.5">{t("purchasing.date")}</th>
                 <th className="px-2 py-2.5">{t("purchasing.supplier")}</th>
                 <th className="px-2 py-2.5">{t("purchasing.invoice")}</th>
@@ -78,7 +78,7 @@ export default function Purchasing() {
                 <th className="px-2 py-2.5">{t("purchasing.outstanding")}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {pageItems.map((p) => {
                 const outstanding = Number(p.total) - Number(p.paid);
                 return (
@@ -86,27 +86,27 @@ export default function Purchasing() {
                     key={p.id}
                     onClick={() => setSelectedPurchase(p.id)}
                     className={`cursor-pointer transition-colors ${
-                      selectedPurchase === p.id ? "bg-brand-50" : "hover:bg-slate-50"
+                      selectedPurchase === p.id ? "bg-brand-50" : "hover:bg-slate-50 dark:hover:bg-slate-800"
                     }`}
                   >
-                    <td className="px-2 py-2.5 text-slate-500">{new Date(p.created_at).toLocaleDateString()}</td>
-                    <td className="px-2 py-2.5 text-slate-800">{p.supplier_name}</td>
-                    <td className="px-2 py-2.5 text-slate-500">{p.invoice_number ?? "—"}</td>
+                    <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{new Date(p.created_at).toLocaleDateString()}</td>
+                    <td className="px-2 py-2.5 text-slate-800 dark:text-slate-100">{p.supplier_name}</td>
+                    <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{p.invoice_number ?? "—"}</td>
                     <td className="px-2 py-2.5"><StatusPill status={p.status} /></td>
-                    <td className="px-2 py-2.5 text-slate-500 max-w-xs truncate" title={p.product_names}>
+                    <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400 max-w-xs truncate" title={p.product_names}>
                       {p.product_names || "—"}
                     </td>
-                    <td className="px-2 py-2.5 text-slate-500">{p.line_count}</td>
-                    <td className="px-2 py-2.5 text-slate-800">{lkr(Number(p.total))}</td>
-                    <td className="px-2 py-2.5 text-slate-500">{lkr(Number(p.paid))}</td>
-                    <td className={`px-2 py-2.5 font-medium ${outstanding > 0 ? "text-amber-600" : "text-slate-800"}`}>
+                    <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{p.line_count}</td>
+                    <td className="px-2 py-2.5 text-slate-800 dark:text-slate-100">{lkr(Number(p.total))}</td>
+                    <td className="px-2 py-2.5 text-slate-500 dark:text-slate-400">{lkr(Number(p.paid))}</td>
+                    <td className={`px-2 py-2.5 font-medium ${outstanding > 0 ? "text-amber-600" : "text-slate-800 dark:text-slate-100"}`}>
                       {lkr(outstanding)}
                     </td>
                   </tr>
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={9} className="px-2 py-10 text-center text-slate-400">{t("purchasing.noPurchasesYet")}</td></tr>
+                <tr><td colSpan={9} className="px-2 py-10 text-center text-slate-400 dark:text-slate-500">{t("purchasing.noPurchasesYet")}</td></tr>
               )}
             </tbody>
           </table>
@@ -194,7 +194,7 @@ function PurchaseDetailDialog({ purchaseId, onClose }: { purchaseId: number | nu
           </h2>
           <div className="flex items-center gap-3">
             {detail.data && <StatusPill status={detail.data.status} />}
-            <button type="button" className="text-xs text-slate-400 hover:text-slate-700" onClick={onClose}>
+            <button type="button" className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200" onClick={onClose}>
               {t("common.close")}
             </button>
           </div>
@@ -202,16 +202,16 @@ function PurchaseDetailDialog({ purchaseId, onClose }: { purchaseId: number | nu
 
         {detail.data && (
           <>
-            <p className="mb-1 text-sm text-slate-500">{detail.data.supplier_name}</p>
-            <p className={`text-xs text-slate-400 ${detail.data.received_at ? "mb-1" : "mb-3"}`}>
+            <p className="mb-1 text-sm text-slate-500 dark:text-slate-400">{detail.data.supplier_name}</p>
+            <p className={`text-xs text-slate-400 dark:text-slate-500 ${detail.data.received_at ? "mb-1" : "mb-3"}`}>
               {t("purchasing.purchaseDate")} {new Date(detail.data.created_at).toLocaleString()}
             </p>
             {detail.data.received_at && (
-              <p className="mb-3 text-xs text-slate-400">
+              <p className="mb-3 text-xs text-slate-400 dark:text-slate-500">
                 {t("purchasing.receivedDate")} {new Date(detail.data.received_at).toLocaleString()}
               </p>
             )}
-            <ul className="mb-4 space-y-1 text-sm text-slate-600">
+            <ul className="mb-4 space-y-1 text-sm text-slate-600 dark:text-slate-300">
               {detail.data.lines.map((l) => (
                 <li key={l.id}>
                   {l.product_name}: {l.quantity} {l.unit_code} @ {lkr(Number(l.unit_cost))} = {lkr(Number(l.line_total))}
@@ -219,30 +219,30 @@ function PurchaseDetailDialog({ purchaseId, onClose }: { purchaseId: number | nu
               ))}
             </ul>
 
-            <div className="mb-4 space-y-1 rounded-lg bg-slate-50 p-3 text-sm">
-              <p className="flex justify-between text-slate-600">
+            <div className="mb-4 space-y-1 rounded-lg bg-slate-50 dark:bg-slate-800 p-3 text-sm">
+              <p className="flex justify-between text-slate-600 dark:text-slate-300">
                 <span>{t("purchasing.total")}</span>
-                <span className="text-slate-800">{lkr(Number(detail.data.total))}</span>
+                <span className="text-slate-800 dark:text-slate-100">{lkr(Number(detail.data.total))}</span>
               </p>
-              <p className="flex justify-between text-slate-600">
+              <p className="flex justify-between text-slate-600 dark:text-slate-300">
                 <span>{t("purchasing.paid")}</span>
-                <span className="text-slate-800">{lkr(Number(detail.data.paid))}</span>
+                <span className="text-slate-800 dark:text-slate-100">{lkr(Number(detail.data.paid))}</span>
               </p>
               <p className="flex justify-between font-medium">
-                <span className={outstanding > 0 ? "text-amber-600" : "text-slate-600"}>
+                <span className={outstanding > 0 ? "text-amber-600" : "text-slate-600 dark:text-slate-300"}>
                   {t("purchasing.outstanding")}
                 </span>
-                <span className={outstanding > 0 ? "text-amber-600" : "text-slate-800"}>{lkr(outstanding)}</span>
+                <span className={outstanding > 0 ? "text-amber-600" : "text-slate-800 dark:text-slate-100"}>{lkr(outstanding)}</span>
               </p>
             </div>
 
             {detail.data.payments.length > 0 && (
               <div className="mb-4">
                 <h3 className="label mb-1.5">{t("purchasing.paymentHistory")}</h3>
-                <ul className="space-y-1 text-sm text-slate-600">
+                <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
                   {detail.data.payments.map((pmt) => (
                     <li key={pmt.id} className="flex justify-between">
-                      <span className="text-slate-400">{new Date(pmt.paid_at).toLocaleString()}</span>
+                      <span className="text-slate-400 dark:text-slate-500">{new Date(pmt.paid_at).toLocaleString()}</span>
                       <span>
                         {lkr(Number(pmt.amount))} · <span className="capitalize">{pmt.method.replace("_", " ")}</span>
                       </span>
@@ -265,7 +265,7 @@ function PurchaseDetailDialog({ purchaseId, onClose }: { purchaseId: number | nu
 
             {detail.data.status === "received" && outstanding > 0 && (
               <form
-                className="space-y-3 border-t border-slate-100 pt-4"
+                className="space-y-3 border-t border-slate-100 dark:border-slate-800 pt-4"
                 onSubmit={(e) => {
                   e.preventDefault();
                   settle.mutate();
@@ -385,7 +385,7 @@ function NewPurchaseDialog({
       <div className="card w-full max-w-md max-h-[90vh] overflow-y-auto p-6">
         <div className="mb-4 flex items-baseline justify-between gap-3">
           <h2 className="text-sm font-semibold text-brand-700">{t("purchasing.newPurchase")}</h2>
-          <button type="button" className="text-xs text-slate-400 hover:text-slate-700" onClick={onClose}>
+          <button type="button" className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200" onClick={onClose}>
             {t("common.close")}
           </button>
         </div>
@@ -406,7 +406,7 @@ function NewPurchaseDialog({
               ))}
             </select>
             {suppliers.data?.length === 0 && (
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                 <Trans
                   i18nKey="purchasing.noSuppliersYet"
                   components={{
@@ -429,7 +429,7 @@ function NewPurchaseDialog({
 
           <h3 className="label pt-1">{t("purchasing.lines")}</h3>
           {lines.length > 0 && (
-            <ul className="space-y-1 text-sm text-slate-600">
+            <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
               {lines.map((l, i) => {
                 const p = products.data?.find((x) => x.id === l.product_id);
                 const u = units.data?.find((x) => x.id === l.unit_id);
@@ -483,7 +483,7 @@ function NewPurchaseDialog({
             <button type="button" className="btn-secondary" onClick={addLine}>{t("purchasing.addLine")}</button>
           </div>
 
-          <p className="text-sm text-slate-500">{t("purchasing.totalLabel")} <b className="text-slate-800">{total.toFixed(2)}</b></p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{t("purchasing.totalLabel")} <b className="text-slate-800 dark:text-slate-100">{total.toFixed(2)}</b></p>
           {error && <p className="text-sm text-amber-600">{error}</p>}
           <button
             type="submit"
