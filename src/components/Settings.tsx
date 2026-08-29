@@ -16,7 +16,7 @@ import {
   setSavedPrinter,
 } from "../printer";
 import { BillLanguage, DEFAULT_LOGO, getShopSettings, setShopSettings, ShopSettings } from "../shop";
-import { api } from "../api";
+import { api, ImportSummary } from "../api";
 import { Bill } from "../types";
 
 // Representative line items just for showing what the receipt will look
@@ -48,6 +48,16 @@ export default function Settings({
   const [loading, setLoading] = useState(true);
   const [backup, setBackup] = useState("");
   const [backingUp, setBackingUp] = useState(false);
+  const [importForm, setImportForm] = useState({
+    host: "localhost",
+    port: "5432",
+    database: "",
+    username: "",
+    password: "",
+  });
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [importResult, setImportResult] = useState<ImportSummary | null>(null);
   const { t, i18n } = useTranslation();
 
   const [shop, setShop] = useState<ShopSettings>(getShopSettings);
@@ -549,6 +559,124 @@ export default function Settings({
             <p className={`mt-1.5 text-xs ${backup.startsWith("Backup failed") ? "text-amber-600" : "text-slate-500 dark:text-slate-400"}`}>
               {backup}
             </p>
+          )}
+
+          {isAdmin && (
+            <div className="mt-6 border-t border-slate-100 dark:border-slate-800 pt-5">
+              <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                {t("settings.import.title")}
+              </h3>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                {t("settings.import.hint")}
+              </p>
+
+              <div className="mt-3 grid grid-cols-2 gap-2.5">
+                <label className="col-span-2 text-xs">
+                  <span className="label mb-1 block">{t("settings.import.host")}</span>
+                  <input
+                    className="input w-full"
+                    value={importForm.host}
+                    onChange={(e) => setImportForm((f) => ({ ...f, host: e.target.value }))}
+                  />
+                </label>
+                <label className="text-xs">
+                  <span className="label mb-1 block">{t("settings.import.port")}</span>
+                  <input
+                    className="input w-full"
+                    inputMode="numeric"
+                    value={importForm.port}
+                    onChange={(e) => setImportForm((f) => ({ ...f, port: e.target.value }))}
+                  />
+                </label>
+                <label className="text-xs">
+                  <span className="label mb-1 block">{t("settings.import.database")}</span>
+                  <input
+                    className="input w-full"
+                    value={importForm.database}
+                    onChange={(e) => setImportForm((f) => ({ ...f, database: e.target.value }))}
+                  />
+                </label>
+                <label className="text-xs">
+                  <span className="label mb-1 block">{t("settings.import.username")}</span>
+                  <input
+                    className="input w-full"
+                    value={importForm.username}
+                    onChange={(e) => setImportForm((f) => ({ ...f, username: e.target.value }))}
+                  />
+                </label>
+                <label className="text-xs">
+                  <span className="label mb-1 block">{t("settings.import.password")}</span>
+                  <input
+                    type="password"
+                    className="input w-full"
+                    value={importForm.password}
+                    onChange={(e) => setImportForm((f) => ({ ...f, password: e.target.value }))}
+                  />
+                </label>
+              </div>
+
+              <button
+                type="button"
+                className="btn-secondary mt-3"
+                disabled={importing || !importForm.database || !importForm.username}
+                onClick={async () => {
+                  setImporting(true);
+                  setImportError("");
+                  setImportResult(null);
+                  try {
+                    const port = Number.parseInt(importForm.port, 10) || 5432;
+                    const result = await api.importFromAgroPlus({ ...importForm, port });
+                    setImportResult(result);
+                  } catch (e) {
+                    setImportError(e instanceof Error ? e.message : String(e));
+                  } finally {
+                    setImporting(false);
+                  }
+                }}
+              >
+                {importing ? t("settings.import.importing") : t("settings.import.button")}
+              </button>
+
+              {importError && <p className="mt-2 text-xs text-amber-600">{importError}</p>}
+
+              {importResult && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    {t("settings.import.summary", {
+                      categories: importResult.categories,
+                      products: importResult.products,
+                      customers: importResult.customers,
+                      sales: importResult.sales,
+                      returns: importResult.returns,
+                      users: importResult.users,
+                    })}
+                  </p>
+                  {importResult.credentials.length > 0 && (
+                    <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3">
+                      <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+                        {t("settings.import.credentialsWarning")}
+                      </p>
+                      <table className="mt-2 w-full text-xs">
+                        <thead>
+                          <tr className="text-left text-amber-700 dark:text-amber-400">
+                            <th className="pr-3 font-medium">{t("settings.import.username")}</th>
+                            <th className="pr-3 font-medium">{t("settings.import.tempPassword")}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importResult.credentials.map((c) => (
+                            <tr key={c.username}>
+                              <td className="pr-3 py-0.5 font-mono">{c.username}</td>
+                              <td className="pr-3 py-0.5 font-mono">{c.temp_password}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

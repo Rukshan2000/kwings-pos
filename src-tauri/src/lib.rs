@@ -1,3 +1,4 @@
+pub mod agroplus_import;
 pub mod auth;
 pub mod db;
 pub mod domain;
@@ -82,6 +83,7 @@ pub fn run() {
             db::commands::db_status,
             db::commands::db_health,
             db::commands::backup_now,
+            agroplus_import::import_from_agroplus,
             catalogue::list_categories,
             catalogue::create_category,
             catalogue::update_category_color,

@@ -454,6 +454,20 @@
     "backingUp": "Backing up…",
     "savedTo": "Saved to {{path}}",
     "backupFailed": "Backup failed: {{error}}",
+    "import": {
+      "title": "Import from AgroPlus",
+      "hint": "One-time import from the old POS's database on this machine. Enter its Postgres connection details below — safe to leave the defaults if it's running locally.",
+      "host": "Host",
+      "port": "Port",
+      "database": "Database name",
+      "username": "Username",
+      "password": "Password",
+      "button": "Import from AgroPlus",
+      "importing": "Importing…",
+      "summary": "Imported {{categories}} categories, {{products}} products, {{customers}} customers, {{sales}} sales, {{returns}} returns, and {{users}} staff accounts.",
+      "credentialsWarning": "New staff accounts were created with temporary passwords. Copy these down now — they won't be shown again. Each user must change their password on first login.",
+      "tempPassword": "Temporary password"
+    },
     "language": "Language",
     "appearance": {
       "title": "Appearance",

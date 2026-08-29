@@ -328,8 +328,32 @@ export type SaleForReturn = {
 };
 export type ReturnSummary = { id: number; total: string };
 
+export type AgroPlusConnection = {
+  host: string;
+  port: number;
+  database: string;
+  username: string;
+  password: string;
+};
+export type ImportedCredential = { username: string; display_name: string; temp_password: string };
+export type ImportSummary = {
+  categories: number;
+  users: number;
+  products: number;
+  price_options: number;
+  customers: number;
+  sales: number;
+  returns: number;
+  restock_movements: number;
+  opening_plugs: number;
+  credentials: ImportedCredential[];
+};
+
 export const api = {
   openCustomerDisplay: () => invoke<void>("open_customer_display"),
+
+  importFromAgroPlus: (input: AgroPlusConnection) =>
+    invoke<ImportSummary>("import_from_agroplus", { input }),
 
   categories: () => invoke<Category[]>("list_categories"),
   createCategory: (name: string, color: string | null) => invoke<Category>("create_category", { name, color }),
