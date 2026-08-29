@@ -463,16 +463,21 @@ pub async fn import_from_agroplus(
         .execute(&mut *tx)
         .await?;
 
-        sqlx::query(
-            "INSERT INTO sale_payment (sale_id, method, amount, created_at)
-             VALUES ($1, $2::payment_method, $3, $4)",
-        )
-        .bind(sale_id)
-        .bind(map_payment_method(payment_method.as_deref().unwrap_or("cash")))
-        .bind(total_amount)
-        .bind(created_at)
-        .execute(&mut *tx)
-        .await?;
+        // sale_payment.amount has a CHECK (amount > 0) — a handful of old sales
+        // are 0-total (giveaways, fully-discounted lines) and have nothing to
+        // record as a payment.
+        if total_amount > Decimal::ZERO {
+            sqlx::query(
+                "INSERT INTO sale_payment (sale_id, method, amount, created_at)
+                 VALUES ($1, $2::payment_method, $3, $4)",
+            )
+            .bind(sale_id)
+            .bind(map_payment_method(payment_method.as_deref().unwrap_or("cash")))
+            .bind(total_amount)
+            .bind(created_at)
+            .execute(&mut *tx)
+            .await?;
+        }
 
         sqlx::query(
             "INSERT INTO stock_movement
