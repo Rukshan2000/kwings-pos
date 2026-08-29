@@ -8,6 +8,3 @@ tsconfig.tsbuildinfo
 # Bundled PostgreSQL — fetched by scripts/fetch-postgres.mjs, never committed
 src-tauri/resources/pgsql
 .pg-cache
-
-# Written by scripts/migrate-agroplus.mjs — contains temp passwords, never committed
-migrated-user-credentials.csv
