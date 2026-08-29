@@ -191,6 +191,15 @@ export default function Settings({
                       : t("settings.users")}
           </button>
         ))}
+        {isAdmin && (
+          <button
+            type="button"
+            className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            onClick={() => api.openSqlConsole()}
+          >
+            {t("settings.sqlConsole.title")} ↗
+          </button>
+        )}
       </div>
 
       {tab === "language" && (

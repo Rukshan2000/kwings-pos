@@ -29,6 +29,7 @@ sqlx = { version = "0.8", default-features = false, features = [
   "migrate",
   "rust_decimal",
   "chrono",
+  "json",
 ] }
 chrono = { version = "0.4", features = ["serde"] }
 argon2 = "0.5"

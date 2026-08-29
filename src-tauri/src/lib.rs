@@ -9,6 +9,7 @@ pub mod pos;
 pub mod reconciliation;
 pub mod reports;
 pub mod returns;
+pub mod sqlconsole;
 mod printing;
 
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
@@ -36,6 +37,27 @@ async fn open_customer_display(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Opens the SQL console as its own window — a full-screen admin tool, not
+/// something to squeeze into a Settings tab. Same single-instance-per-label
+/// behavior as `open_customer_display`. The window loads the same SPA bundle
+/// with `#/sql-console` as its route; `main.tsx` picks the render tree by the
+/// window's label, same as the customer display.
+#[tauri::command]
+async fn open_sql_console(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window("sql-console") {
+        win.show().map_err(|e| e.to_string())?;
+        win.set_focus().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    WebviewWindowBuilder::new(&app, "sql-console", WebviewUrl::App("index.html".into()))
+        .title("SQL Console")
+        .inner_size(1100.0, 760.0)
+        .min_inner_size(700.0, 480.0)
+        .build()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -45,6 +67,7 @@ pub fn run() {
         .manage(auth::SessionState::empty())
         .invoke_handler(tauri::generate_handler![
             open_customer_display,
+            open_sql_console,
             auth::login,
             auth::logout,
             auth::current_user,
@@ -118,6 +141,9 @@ pub fn run() {
             reconciliation::list_reconciliations,
             returns::find_sale_for_return,
             returns::create_return,
+            sqlconsole::run_sql_query,
+            sqlconsole::list_sql_tables,
+            sqlconsole::list_table_columns,
         ])
         .setup(|app| {
             let handle = app.handle().clone();

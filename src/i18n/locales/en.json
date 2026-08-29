@@ -406,6 +406,27 @@
   },
   "settings": {
     "users": "Users",
+    "sqlConsole": {
+      "title": "SQL Console",
+      "locked": "Enter the admin SQL console password to continue.",
+      "passwordPlaceholder": "Password",
+      "unlock": "Unlock",
+      "wrongPassword": "Wrong password.",
+      "hintCrud": "SELECT, INSERT, UPDATE, and DELETE are allowed — one statement at a time, nothing that changes the schema. Pick an example below or write your own.",
+      "run": "Run query",
+      "running": "Running…",
+      "confirmRun": "Run it — this changes data",
+      "dangerousWarning": "This statement changes data. Click again to confirm.",
+      "rowCount": "{{count}} row",
+      "rowCount_other": "{{count}} rows",
+      "rowsAffected": "{{count}} row affected",
+      "rowsAffected_other": "{{count}} rows affected",
+      "noRows": "Query ran successfully — no rows returned.",
+      "runToSeeResults": "Run a query to see results here.",
+      "adminOnly": "The SQL console is only available to admins.",
+      "tables": "Tables",
+      "browsing": "Browsing {{table}}"
+    },
     "usersPanel": {
       "name": "Name",
       "username": "Username",

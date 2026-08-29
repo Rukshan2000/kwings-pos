@@ -336,6 +336,16 @@ export const api = {
   updateCategoryColor: (id: number, color: string | null) => invoke<Category>("update_category_color", { id, color }),
   archiveCategory: (id: number) => invoke<void>("archive_category", { id }),
 
+  openSqlConsole: () => invoke<void>("open_sql_console"),
+  runSqlQuery: (sql: string) =>
+    invoke<{ columns: string[]; rows: Record<string, unknown>[]; rows_affected: number | null }>(
+      "run_sql_query",
+      { sql }
+    ),
+  listSqlTables: () => invoke<{ name: string; row_estimate: number }[]>("list_sql_tables"),
+  listTableColumns: (table: string) =>
+    invoke<{ name: string; data_type: string; is_nullable: boolean }[]>("list_table_columns", { table }),
+
   brands: () => invoke<Brand[]>("list_brands"),
   createBrand: (name: string) => invoke<Brand>("create_brand", { name }),
   archiveBrand: (id: number) => invoke<void>("archive_brand", { id }),

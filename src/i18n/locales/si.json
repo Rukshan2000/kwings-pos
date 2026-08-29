@@ -421,6 +421,27 @@
   },
   "settings": {
     "users": "පරිශීලකයන්",
+    "sqlConsole": {
+      "title": "SQL කොන්සෝලය",
+      "locked": "ඉදිරියට යාමට පරිපාලක SQL කොන්සෝල මුරපදය ඇතුළත් කරන්න.",
+      "passwordPlaceholder": "මුරපදය",
+      "unlock": "විවෘත කරන්න",
+      "wrongPassword": "වැරදි මුරපදයකි.",
+      "hintCrud": "SELECT, INSERT, UPDATE, සහ DELETE අවසර ඇත — වරකට එක් ප්‍රකාශයක් පමණි, ව්‍යුහය වෙනස් කරන කිසිවක් නැත. පහත උදාහරණයක් තෝරන්න හෝ ඔබම ලියන්න.",
+      "run": "විමසුම ධාවනය කරන්න",
+      "running": "ධාවනය වෙමින්…",
+      "confirmRun": "ධාවනය කරන්න — මෙය දත්ත වෙනස් කරයි",
+      "dangerousWarning": "මෙම ප්‍රකාශය දත්ත වෙනස් කරයි. තහවුරු කිරීමට නැවත ක්ලික් කරන්න.",
+      "rowCount": "පේළි {{count}}",
+      "rowCount_other": "පේළි {{count}}",
+      "rowsAffected": "පේළි {{count}} බලපෑවා",
+      "rowsAffected_other": "පේළි {{count}} බලපෑවා",
+      "noRows": "විමසුම සාර්ථකව ධාවනය විය — කිසිදු පේළියක් ලැබුණේ නැත.",
+      "runToSeeResults": "ප්‍රතිඵල බැලීමට විමසුමක් ධාවනය කරන්න.",
+      "adminOnly": "SQL කොන්සෝලය පරිපාලකයින්ට පමණක් ලබා ගත හැක.",
+      "tables": "වගු",
+      "browsing": "{{table}} බලමින්"
+    },
     "usersPanel": {
       "name": "නම",
       "username": "පරිශීලක නාමය",
