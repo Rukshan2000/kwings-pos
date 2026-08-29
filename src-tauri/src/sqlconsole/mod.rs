@@ -5,8 +5,10 @@
 //! Opened as its own window (see `open_sql_console` in `lib.rs`), gated by a
 //! password on the frontend and, for real, by this command re-checking the
 //! admin role itself. A single statement only — no semicolon stacking — and
-//! schema-changing statements (DROP/TRUNCATE/ALTER/CREATE/GRANT/...) are
-//! refused; this is for editing rows, not the schema.
+//! schema-changing statements (DROP/ALTER/CREATE/GRANT/...) are refused; this
+//! is for editing rows, not the schema. TRUNCATE is the one exception: it
+//! only empties tables, it doesn't touch their structure, and admins need it
+//! for wiping test/demo data before a shop goes live.
 
 use serde::Serialize;
 use sqlx::FromRow;
@@ -81,11 +83,12 @@ pub async fn list_table_columns(
 }
 
 const FORBIDDEN_KEYWORDS: &[&str] = &[
-    "drop ", "truncate ", "alter ", "create ", "grant ", "revoke ", "vacuum ", "copy ",
+    "drop ", "alter ", "create ", "grant ", "revoke ", "vacuum ", "copy ",
 ];
 
-/// A single SELECT/WITH/INSERT/UPDATE/DELETE statement — no semicolon
-/// stacking, and nothing that touches the schema or server config.
+/// A single SELECT/WITH/INSERT/UPDATE/DELETE/TRUNCATE statement — no
+/// semicolon stacking, and nothing else that touches the schema or server
+/// config.
 fn validate_statement(sql: &str) -> Result<(), DbError> {
     let trimmed = sql.trim();
     if trimmed.is_empty() {
@@ -95,12 +98,12 @@ fn validate_statement(sql: &str) -> Result<(), DbError> {
         return Err(DbError::Conflict("only a single statement is allowed".into()));
     }
     let lower = trimmed.to_lowercase();
-    let allowed_start = ["select", "with", "insert", "update", "delete"]
+    let allowed_start = ["select", "with", "insert", "update", "delete", "truncate"]
         .iter()
         .any(|kw| lower.starts_with(kw));
     if !allowed_start {
         return Err(DbError::Conflict(
-            "only SELECT, WITH, INSERT, UPDATE, or DELETE statements are allowed here".into(),
+            "only SELECT, WITH, INSERT, UPDATE, DELETE, or TRUNCATE statements are allowed here".into(),
         ));
     }
     if let Some(kw) = FORBIDDEN_KEYWORDS.iter().find(|kw| lower.contains(*kw)) {
